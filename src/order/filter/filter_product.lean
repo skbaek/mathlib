@@ -42,9 +42,9 @@ begin
   exact NT rs
 end
 
-instance : has_coe (α → β) β* := ⟨seq_to_filterprod β φ⟩
+instance : has_coe (α → β) β* := ⟨ seq_to_filterprod β φ ⟩
 
-instance coe_filterprod : has_coe β β* := ⟨to_filterprod β φ⟩
+instance coe_filterprod : has_coe β β* := ⟨ to_filterprod β φ ⟩
 
 instance [has_add β] : has_add β* :=
 { add := λ x y, quotient.lift_on₂' x y (λ a b, (quotient.mk' $ λ n, a n + b n : β*)) $
@@ -136,7 +136,7 @@ instance [group β] : group β* :=
 
 instance [comm_group β] : comm_group β* := 
 { ..filter_product.comm_monoid β φ, 
-  ..filter_product.group β φ}
+  ..filter_product.group β φ }
 
 instance [distrib β] : distrib β* :=
 { left_distrib := λ x y z, quotient.induction_on₃' x y z 
@@ -163,7 +163,7 @@ instance [semiring β] : semiring β* :=
 instance [ring β] : ring β* := 
 { ..filter_product.add_comm_group β φ, 
   ..filter_product.monoid β φ, 
-  ..filter_product.distrib β φ}
+  ..filter_product.distrib β φ }
 
 instance [comm_semiring β] : comm_semiring β* := 
 { ..filter_product.semiring β φ, 
@@ -197,7 +197,7 @@ instance [division_ring β] (U : is_ultrafilter φ) : division_ring β* :=
     mem_sets_of_superset hx2 h, 
   ..filter_product.ring β φ, 
   ..filter_product.has_inv β φ, 
-  ..filter_product.zero_ne_one_class β φ U}
+  ..filter_product.zero_ne_one_class β φ U }
 
 instance [field β] (U : is_ultrafilter φ) : field β* :=
 { ..filter_product.comm_ring β φ, 
@@ -207,7 +207,7 @@ noncomputable instance [discrete_field β] (U : is_ultrafilter φ) : discrete_fi
 { inv_zero := quotient.sound' $ by show _ ∈ _;
     simp only [inv_zero, eq_self_iff_true, (set.univ_def).symm, univ_sets],
   has_decidable_eq := by apply_instance, 
-  ..filter_product.field β φ U}
+  ..filter_product.field β φ U }
 
 end filter_product
 
