@@ -55,7 +55,7 @@ instance [has_zero β] : has_zero β* := { zero := to_filterprod β φ (0 : β) 
 
 instance [has_neg β] : has_neg β* :=
 { neg := λ x, (quotient.lift_on' x (λ a, (quotient.mk' (λ n, - a n) : β*))) $
-    λ a b rab, quotient.sound' $ by show _ ∈ _; by
+    λ a b rab, quotient.sound' $ by
     { have h : {n | a n = b n} ⊆ {n | - a n =  - b n} := 
         λ n ha, by change a n = b n at ha; simp [ha],
       exact mem_sets_of_superset rab h } }
@@ -101,7 +101,7 @@ instance [has_one β] : has_one β* := { one := to_filterprod β φ (1 : β) }
 
 instance [has_inv β] : has_inv β* :=
 { inv := λ x, (quotient.lift_on' x (λ a, (quotient.mk' (λ n, (a n)⁻¹) : β*))) $
-    λ a b rab, quotient.sound' $ by show _ ∈ _; by
+    λ a b rab, quotient.sound' $ by
     { have h : {n | a n = b n} ⊆ {n | (a n)⁻¹ = (b n)⁻¹} := 
         λ n ha, by change a n = b n at ha; simp [ha],
       exact mem_sets_of_superset rab h } }
