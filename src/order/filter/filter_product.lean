@@ -17,7 +17,7 @@ namespace filter
 
 /-- Two sequences are bigly equal iff the kernel of their difference is in φ -/
 def bigly_equal : setoid (α → β) := 
-⟨ λ a b, {n | a n = b n} ∈ φ.sets,
+⟨ λ a b, {n | a n = b n} ∈ φ,
   λ a, by simp only [eq_self_iff_true, (set.univ_def).symm, univ_sets], 
   λ a b ab, by simpa only [eq_comm], 
   λ a b c ab bc, sets_of_superset φ (inter_sets φ ab bc) 
@@ -61,40 +61,36 @@ instance [has_neg β] : has_neg β* :=
       exact mem_sets_of_superset rab h } }
 
 instance [add_semigroup β] : add_semigroup β* :=
-{ add := has_add.add,
-  add_assoc := λ x y z, quotient.induction_on₃' x y z $ λ a b c, quotient.sound' $
-    show {n | _+_+_ = _+(_+_)} ∈ _, by simp only [add_assoc, eq_self_iff_true]; exact φ.2 }
+{ add_assoc := λ x y z, quotient.induction_on₃' x y z $ λ a b c, quotient.sound' $
+    show {n | _+_+_ = _+(_+_)} ∈ _, by simp only [add_assoc, eq_self_iff_true]; exact φ.2, 
+  ..filter_product.has_add β φ }
 
-instance am [add_monoid β] : add_monoid β* :=
-{ add := has_add.add,
-  add_assoc := add_semigroup.add_assoc,
-  zero := 0,
-  zero_add := λ x, quotient.induction_on' x 
+instance [add_monoid β] : add_monoid β* :=
+{ zero_add := λ x, quotient.induction_on' x 
     (λ a, quotient.sound'(by simp only [zero_add]; apply (setoid.iseqv _).1)),
   add_zero := λ x, quotient.induction_on' x 
-    (λ a, quotient.sound'(by simp only [add_zero]; apply (setoid.iseqv _).1)) }
+    (λ a, quotient.sound'(by simp only [add_zero]; apply (setoid.iseqv _).1)), 
+  ..filter_product.add_semigroup β φ, 
+  ..filter_product.has_zero β φ }
 
-instance acs [add_comm_semigroup β] : add_comm_semigroup β* :=
-{ add := has_add.add,
-  add_assoc := add_semigroup.add_assoc,
-  add_comm := λ x y, quotient.induction_on₂' x y 
-    (λ a b, quotient.sound' (by simp only [add_comm]; apply (setoid.iseqv _).1)) }
+instance [add_comm_semigroup β] : add_comm_semigroup β* :=
+{ add_comm := λ x y, quotient.induction_on₂' x y 
+    (λ a b, quotient.sound' (by simp only [add_comm]; apply (setoid.iseqv _).1)), 
+  ..filter_product.add_semigroup β φ }
 
-instance acm [add_comm_monoid β] : add_comm_monoid β* := 
-{..filter_product.acs β φ, ..filter_product.am β φ }
+instance [add_comm_monoid β] : add_comm_monoid β* := 
+{ ..filter_product.add_comm_semigroup β φ, 
+  ..filter_product.add_monoid β φ }
 
-instance ag [add_group β] : add_group β* :=
-{ add := has_add.add,
-  add_assoc := add_semigroup.add_assoc,
-  zero := 0,
-  zero_add := add_monoid.zero_add,
-  add_zero := add_monoid.add_zero,
-  neg := has_neg.neg,
-  add_left_neg := λ x, quotient.induction_on' x 
-    (λ a, quotient.sound' (by simp only [add_left_neg]; apply (setoid.iseqv _).1)) }
+instance [add_group β] : add_group β* :=
+{ add_left_neg := λ x, quotient.induction_on' x 
+    (λ a, quotient.sound' (by simp only [add_left_neg]; apply (setoid.iseqv _).1)), 
+  ..filter_product.add_monoid β φ, 
+  ..filter_product.has_neg β φ }
 
-instance acg [add_comm_group β] : add_comm_group β* := 
-{..filter_product.acm β φ, ..filter_product.ag β φ}
+instance [add_comm_group β] : add_comm_group β* := 
+{ ..filter_product.add_comm_monoid β φ, 
+  ..filter_product.add_group β φ }
 
 instance [has_mul β] : has_mul β* :=
 { mul := λ x y, quotient.lift_on₂' x y (λ a b, (quotient.mk' $ λ n, a n * b n : β*)) $
@@ -111,97 +107,83 @@ instance [has_inv β] : has_inv β* :=
       exact mem_sets_of_superset rab h } }
 
 instance [semigroup β] : semigroup β* :=
-{ mul := has_mul.mul,
-  mul_assoc := λ x y z, quotient.induction_on₃' x y z $ λ a b c, quotient.sound' $
-    show {n | _*_*_ = _*(_*_)} ∈ _, by simp only [mul_assoc, eq_self_iff_true]; exact φ.2 }
+{ mul_assoc := λ x y z, quotient.induction_on₃' x y z $ λ a b c, quotient.sound' $
+    show {n | _*_*_ = _*(_*_)} ∈ _, by simp only [mul_assoc, eq_self_iff_true]; exact φ.2, 
+  ..filter_product.has_mul β φ }
 
-instance m [monoid β] : monoid β* :=
-{ mul := has_mul.mul,
-  mul_assoc := semigroup.mul_assoc,
-  one := 1,
-  one_mul := λ x, quotient.induction_on' x 
+instance [monoid β] : monoid β* :=
+{ one_mul := λ x, quotient.induction_on' x 
     (λ a, quotient.sound'(by simp only [one_mul]; apply (setoid.iseqv _).1)),
   mul_one := λ x, quotient.induction_on' x 
-    (λ a, quotient.sound'(by simp only [mul_one]; apply (setoid.iseqv _).1)) }
+    (λ a, quotient.sound'(by simp only [mul_one]; apply (setoid.iseqv _).1)), 
+  ..filter_product.semigroup β φ,
+  ..filter_product.has_one β φ }
 
-instance cs [comm_semigroup β] : comm_semigroup β* :=
-{ mul := has_mul.mul,
-  mul_assoc := semigroup.mul_assoc,
-  mul_comm := λ x y, quotient.induction_on₂' x y 
-    (λ a b, quotient.sound' (by simp only [mul_comm]; apply (setoid.iseqv _).1)) }
+instance [comm_semigroup β] : comm_semigroup β* :=
+{ mul_comm := λ x y, quotient.induction_on₂' x y 
+    (λ a b, quotient.sound' (by simp only [mul_comm]; apply (setoid.iseqv _).1)), 
+  ..filter_product.semigroup β φ }
 
-instance cm [comm_monoid β] : comm_monoid β* := 
-{..filter_product.cs β φ, ..filter_product.m β φ }
+instance [comm_monoid β] : comm_monoid β* := 
+{ ..filter_product.comm_semigroup β φ, 
+  ..filter_product.monoid β φ }
 
-instance g [group β] : group β* :=
-{ mul := has_mul.mul,
-  mul_assoc := semigroup.mul_assoc,
-  one := 1,
-  one_mul := monoid.one_mul,
-  mul_one := monoid.mul_one,
-  inv := has_inv.inv,
-  mul_left_inv := λ x, quotient.induction_on' x 
-    (λ a, quotient.sound' (by simp only [mul_left_inv]; apply (setoid.iseqv _).1)) }
+instance [group β] : group β* :=
+{ mul_left_inv := λ x, quotient.induction_on' x 
+    (λ a, quotient.sound' (by simp only [mul_left_inv]; apply (setoid.iseqv _).1)), 
+  ..filter_product.monoid β φ,
+  ..filter_product.has_inv β φ }
 
 instance [comm_group β] : comm_group β* := 
-{..filter_product.cm β φ, ..filter_product.g β φ}
+{ ..filter_product.comm_monoid β φ, 
+  ..filter_product.group β φ}
 
-instance d [distrib β] : distrib β* :=
-{ add := has_add.add,
-  mul := has_mul.mul,
-  left_distrib := λ x y z, quotient.induction_on₃' x y z 
+instance [distrib β] : distrib β* :=
+{ left_distrib := λ x y z, quotient.induction_on₃' x y z 
     (λ x y z, quotient.sound' (by simp only [left_distrib]; apply (setoid.iseqv _).1)),
   right_distrib := λ x y z, quotient.induction_on₃' x y z 
-    (λ x y z, quotient.sound' (by simp only [right_distrib]; apply (setoid.iseqv _).1)) }
+    (λ x y z, quotient.sound' (by simp only [right_distrib]; apply (setoid.iseqv _).1)), 
+  ..filter_product.has_add β φ,
+  ..filter_product.has_mul β φ }
 
-instance mz [mul_zero_class β] : mul_zero_class β* :=
-{ mul := has_mul.mul,
-  zero := 0,
-  zero_mul := λ x, quotient.induction_on' x 
+instance [mul_zero_class β] : mul_zero_class β* :=
+{ zero_mul := λ x, quotient.induction_on' x 
     (λ a, quotient.sound' (by simp only [zero_mul]; apply (setoid.iseqv _).1)),
   mul_zero := λ x, quotient.induction_on' x 
-    (λ a, quotient.sound' (by simp only [mul_zero]; apply (setoid.iseqv _).1)) }
+    (λ a, quotient.sound' (by simp only [mul_zero]; apply (setoid.iseqv _).1)), 
+  ..filter_product.has_mul β φ,
+  ..filter_product.has_zero β φ }
 
-instance sr [semiring β] : semiring β* := 
-{ ..filter_product.acm β φ, ..filter_product.m β φ, ..filter_product.d β φ, ..filter_product.mz β φ }
+instance [semiring β] : semiring β* := 
+{ ..filter_product.add_comm_monoid β φ, 
+  ..filter_product.monoid β φ, 
+  ..filter_product.distrib β φ, 
+  ..filter_product.mul_zero_class β φ }
 
-instance r [ring β] : ring β* := 
-{..filter_product.acg β φ, ..filter_product.m β φ, ..filter_product.d β φ}
+instance [ring β] : ring β* := 
+{ ..filter_product.add_comm_group β φ, 
+  ..filter_product.monoid β φ, 
+  ..filter_product.distrib β φ}
 
 instance [comm_semiring β] : comm_semiring β* := 
-{..filter_product.sr β φ, ..filter_product.cm β φ}
+{ ..filter_product.semiring β φ, 
+  ..filter_product.comm_monoid β φ }
 
-instance cr [comm_ring β] : comm_ring β* := 
-{..filter_product.r β φ, ..filter_product.cs β φ}
+instance [comm_ring β] : comm_ring β* := 
+{ ..filter_product.ring β φ, 
+  ..filter_product.comm_semigroup β φ }
 
-instance zo [zero_ne_one_class β] (U : is_ultrafilter φ) : zero_ne_one_class β* :=
-{ zero := 0,
-  one := 1,
-  zero_ne_one := by
+instance [zero_ne_one_class β] (U : is_ultrafilter φ) : zero_ne_one_class β* :=
+{ zero_ne_one := by
   { intro c, have c' : _ := quotient.exact' c, 
     change _ ∈ _ at c', 
     simp only [set.set_of_false, zero_ne_one, empty_in_sets_eq_bot] at c', 
-    apply U.1 c' } }
+    apply U.1 c' },
+  ..filter_product.has_zero β φ, 
+  ..filter_product.has_one β φ }
 
-instance dr [division_ring β] (U : is_ultrafilter φ) : division_ring β* :=
-{ add := has_add.add,
-  add_assoc := add_semigroup.add_assoc,
-  zero := 0,
-  zero_add := add_monoid.zero_add,
-  add_zero := add_monoid.add_zero,
-  neg := has_neg.neg,
-  add_left_neg := add_group.add_left_neg,
-  add_comm := add_comm_semigroup.add_comm,
-  mul := has_mul.mul,
-  mul_assoc := semigroup.mul_assoc,
-  one := 1,
-  one_mul := monoid.one_mul,
-  mul_one := monoid.mul_one,
-  left_distrib := distrib.left_distrib,
-  right_distrib := distrib.right_distrib,
-  zero_ne_one := (filter_product.zo _ _ U).zero_ne_one,  
-  inv := has_inv.inv,
-  mul_inv_cancel := λ x, quotient.induction_on' x $ λ a hx, quotient.sound' $
+instance [division_ring β] (U : is_ultrafilter φ) : division_ring β* :=
+{ mul_inv_cancel := λ x, quotient.induction_on' x $ λ a hx, quotient.sound' $
     have hx1 : _ := (not_imp_not.mpr quotient.eq'.mpr) hx,
     have hx2 : _ := (ultrafilter_iff_compl_mem_iff_not_mem.mp U _).mpr hx1,
     have h : {n : α | ¬a n = 0} ⊆ {n : α | a n * (a n)⁻¹ = 1} := 
@@ -212,35 +194,20 @@ instance dr [division_ring β] (U : is_ultrafilter φ) : division_ring β* :=
     have hx2 : _ := (ultrafilter_iff_compl_mem_iff_not_mem.mp U _).mpr hx1,
     have h : {n : α | ¬a n = 0} ⊆ {n : α | (a n)⁻¹ * a n = 1} := 
       by rw [set.set_of_subset_set_of]; exact λ n, division_ring.inv_mul_cancel,
-    mem_sets_of_superset hx2 h }
+    mem_sets_of_superset hx2 h, 
+  ..filter_product.ring β φ, 
+  ..filter_product.has_inv β φ, 
+  ..filter_product.zero_ne_one_class β φ U}
 
-instance f [field β] (U : is_ultrafilter φ) : field β* :=
-{..filter_product.cr _ _, ..filter_product.dr _ _ U}
+instance [field β] (U : is_ultrafilter φ) : field β* :=
+{ ..filter_product.comm_ring β φ, 
+  ..filter_product.division_ring β φ U }
 
 noncomputable instance [discrete_field β] (U : is_ultrafilter φ) : discrete_field β* :=
-{ add := has_add.add,
-  add_assoc := add_semigroup.add_assoc,
-  zero := 0,
-  zero_add := add_monoid.zero_add,
-  add_zero := add_monoid.add_zero,
-  neg := has_neg.neg,
-  add_left_neg := add_group.add_left_neg,
-  add_comm := add_comm_semigroup.add_comm,
-  mul := has_mul.mul,
-  mul_assoc := semigroup.mul_assoc,
-  one := 1,
-  one_mul := monoid.one_mul,
-  mul_one := monoid.mul_one,
-  left_distrib := distrib.left_distrib,
-  right_distrib := distrib.right_distrib,
-  zero_ne_one := (filter_product.zo _ _ U).zero_ne_one,  
-  inv := has_inv.inv,
-  mul_inv_cancel := (filter_product.f _ _ U).mul_inv_cancel,
-  inv_mul_cancel := (filter_product.f _ _ U).inv_mul_cancel,
-  mul_comm := comm_ring.mul_comm,
-  inv_zero := quotient.sound' $ by show _ ∈ _;
+{ inv_zero := quotient.sound' $ by show _ ∈ _;
     simp only [inv_zero, eq_self_iff_true, (set.univ_def).symm, univ_sets],
-  has_decidable_eq := by apply_instance }
+  has_decidable_eq := by apply_instance, 
+  ..filter_product.field β φ U}
 
 end filter_product
 
@@ -250,7 +217,7 @@ section hyperreal
 variables (ψ : filter ℕ) (V : filter.is_ultrafilter ψ) include V
 
 /-- Hyperreal numbers on a general ultrafilter -/
-def hypr := filter.filterprod ℝ ψ
-notation `ℝ*` := hypr
+def hyperreal := filter.filterprod ℝ ψ
+notation `ℝ*` := hyperreal
 
 end hyperreal
