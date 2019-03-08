@@ -34,22 +34,17 @@ def seq_to_filterprod : (α → β) → β* := @quotient.mk' (α → β) (bigly_
 /-- Equivalence class containing the constant sequence of a term in β -/
 def to_filterprod : β → β* := function.comp (seq_to_filterprod β φ) (λ x n, x)
 
-instance : has_coe (α → β) β* :=  ⟨seq_to_filterprod β φ⟩
-
-instance coe_filterprod : has_coe β β* := ⟨to_filterprod β φ⟩
-
-section ultraproduct
-variable {U : is_ultrafilter φ} include U
-
-theorem to_filterprod_inj : function.injective (to_filterprod β φ) :=
+theorem to_filterprod_inj (NT : φ ≠ ⊥): function.injective (to_filterprod β φ) :=
 begin
   intros r s rs, by_contra N,
   rw [to_filterprod, seq_to_filterprod, quotient.eq', bigly_equal] at rs, 
   simp only [N, set.set_of_false, empty_in_sets_eq_bot] at rs,
-  exact U.1 rs
+  exact NT rs
 end
 
-end ultraproduct
+instance : has_coe (α → β) β* := ⟨seq_to_filterprod β φ⟩
+
+instance coe_filterprod : has_coe β β* := ⟨to_filterprod β φ⟩
 
 instance [has_add β] : has_add β* :=
 { add := λ x y, quotient.lift_on₂' x y (λ a b, (quotient.mk' $ λ n, a n + b n : β*)) $
@@ -179,7 +174,7 @@ instance [comm_semiring β] : comm_semiring β* :=
 instance cr [comm_ring β] : comm_ring β* := 
 {..filter_product.r β φ, ..filter_product.cs β φ}
 
-instance zo [zero_ne_one_class β] {U : is_ultrafilter φ} : zero_ne_one_class β* :=
+instance zo [zero_ne_one_class β] (U : is_ultrafilter φ) : zero_ne_one_class β* :=
 { zero := 0,
   one := 1,
   zero_ne_one := by
@@ -188,7 +183,7 @@ instance zo [zero_ne_one_class β] {U : is_ultrafilter φ} : zero_ne_one_class �
     simp only [set.set_of_false, zero_ne_one, empty_in_sets_eq_bot] at c', 
     apply U.1 c' } }
 
-instance dr [division_ring β] {U : is_ultrafilter φ} : division_ring β* :=
+instance dr [division_ring β] (U : is_ultrafilter φ) : division_ring β* :=
 { add := has_add.add,
   add_assoc := add_semigroup.add_assoc,
   zero := 0,
@@ -204,7 +199,7 @@ instance dr [division_ring β] {U : is_ultrafilter φ} : division_ring β* :=
   mul_one := monoid.mul_one,
   left_distrib := distrib.left_distrib,
   right_distrib := distrib.right_distrib,
-  zero_ne_one := (@filter_product.zo _ _ _ _ U).zero_ne_one,  
+  zero_ne_one := (filter_product.zo _ _ U).zero_ne_one,  
   inv := has_inv.inv,
   mul_inv_cancel := λ x, quotient.induction_on' x $ λ a hx, quotient.sound' $
     have hx1 : _ := (not_imp_not.mpr quotient.eq'.mpr) hx,
@@ -219,10 +214,10 @@ instance dr [division_ring β] {U : is_ultrafilter φ} : division_ring β* :=
       by rw [set.set_of_subset_set_of]; exact λ n, division_ring.inv_mul_cancel,
     mem_sets_of_superset hx2 h }
 
-instance f [field β] {U : is_ultrafilter φ} : field β* :=
-{..filter_product.cr _ _, ..@filter_product.dr _ _ _ _ U}
+instance f [field β] (U : is_ultrafilter φ) : field β* :=
+{..filter_product.cr _ _, ..filter_product.dr _ _ U}
 
-noncomputable instance [discrete_field β] {U : is_ultrafilter φ} : discrete_field β* :=
+noncomputable instance [discrete_field β] (U : is_ultrafilter φ) : discrete_field β* :=
 { add := has_add.add,
   add_assoc := add_semigroup.add_assoc,
   zero := 0,
@@ -238,10 +233,10 @@ noncomputable instance [discrete_field β] {U : is_ultrafilter φ} : discrete_fi
   mul_one := monoid.mul_one,
   left_distrib := distrib.left_distrib,
   right_distrib := distrib.right_distrib,
-  zero_ne_one := (@filter_product.zo _ _ _ _ U).zero_ne_one,  
+  zero_ne_one := (filter_product.zo _ _ U).zero_ne_one,  
   inv := has_inv.inv,
-  mul_inv_cancel := (@filter_product.f _ _ _ _ U).mul_inv_cancel,
-  inv_mul_cancel := (@filter_product.f _ _ _ _ U).inv_mul_cancel,
+  mul_inv_cancel := (filter_product.f _ _ U).mul_inv_cancel,
+  inv_mul_cancel := (filter_product.f _ _ U).inv_mul_cancel,
   mul_comm := comm_ring.mul_comm,
   inv_zero := quotient.sound' $ by show _ ∈ _;
     simp only [inv_zero, eq_self_iff_true, (set.univ_def).symm, univ_sets],
@@ -252,7 +247,7 @@ end filter_product
 end filter
 
 section hyperreal
-variables (ψ : filter ℕ) {V : filter.is_ultrafilter ψ} include V
+variables (ψ : filter ℕ) (V : filter.is_ultrafilter ψ) include V
 
 /-- Hyperreal numbers on a general ultrafilter -/
 def hypr := filter.filterprod ℝ ψ
