@@ -17,7 +17,7 @@ namespace filter
 
 /-- Two sequences are bigly equal iff the kernel of their difference is in φ -/
 def bigly_equal : setoid (α → β) := 
-⟨ λ a b, {n | a n = b n} ∈ φ.sets,
+⟨ λ a b, {n | a n = b n} ∈ φ,
   λ a, by simp only [eq_self_iff_true, (set.univ_def).symm, univ_sets], 
   λ a b ab, by simpa only [eq_comm], 
   λ a b c ab bc, sets_of_superset φ (inter_sets φ ab bc) 
