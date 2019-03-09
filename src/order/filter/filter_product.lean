@@ -34,18 +34,31 @@ variables {α β φ} include α β φ
 def of_seq : (α → β) → β* := @quotient.mk' (α → β) (bigly_equal β φ)
 
 /-- Equivalence class containing the constant sequence of a term in β -/
-def of (b : β): β* := of_seq (function.const _ b)
+def of (b : β): β* := of_seq (function.const α b)
 
 /-- Lift function to filter product -/
 def lift (f : β → β) : β* → β* :=
-  λ x, quotient.lift_on' x (λ a, (quotient.mk' $ λ n, f (a n) : β*)) $
+  λ x, quotient.lift_on' x (λ a, (of_seq $ λ n, f (a n) : β*)) $
   λ a b h, quotient.sound' $ show _ ∈ _, by filter_upwards [h] λ i hi, congr_arg _ hi
 
 /-- Lift binary operation to filter product -/
 def lift₂ (f : β → β → β) : β* → β* → β* :=
-  λ x y, quotient.lift_on₂' x y (λ a b, (quotient.mk' $ λ n, f (a n) (b n) : β*)) $
+  λ x y, quotient.lift_on₂' x y (λ a b, (of_seq $ λ n, f (a n) (b n) : β*)) $
   λ a₁ a₂ b₁ b₂ h1 h2, quotient.sound' $ show _ ∈ _,
   by filter_upwards [h1, h2] λ i hi1 hi2, congr (congr_arg _ hi1) hi2
+
+/-- Lift properties to filter product -/
+def lift_rel (R : β → Prop) : β* → Prop :=
+  λ x, quotient.lift_on' x (λ a, {i : α | R (a i)} ∈ φ) $ λ a b h, propext 
+  ⟨ λ ha, by filter_upwards [h, ha] λ i hi hia, by simpa [hi.symm],
+    λ hb, by filter_upwards [h, hb] λ i hi hib, by simpa [hi.symm.symm] ⟩
+
+/-- Lift binary relations to filter product -/
+def lift_rel₂ (R : β → β → Prop) : β* → β* → Prop :=
+  λ x y, quotient.lift_on₂' x y (λ a b, {i : α | R (a i) (b i)} ∈ φ) $
+  λ a₁ a₂ b₁ b₂ h₁ h₂, propext 
+  ⟨ λ ha, by filter_upwards [h₁, h₂, ha] λ i hi1 hi2 hia, by simpa [hi1.symm, hi2.symm],
+    λ hb, by filter_upwards [h₁, h₂, hb] λ i hi1 hi2 hib, by simpa [hi1.symm.symm, hi2.symm.symm] ⟩
 
 theorem of_inj (NT : φ ≠ ⊥): function.injective (@of _ β φ) :=
 begin
@@ -205,6 +218,10 @@ noncomputable instance [discrete_field β] (U : is_ultrafilter φ) : discrete_fi
     simp only [inv_zero, eq_self_iff_true, (set.univ_def).symm, univ_sets],
   has_decidable_eq := by apply_instance, 
   ..filter_product.field U }
+
+instance [has_le β] : has_le β* := { le := lift_rel₂ has_le.le }
+
+instance [has_lt β] : has_lt β* := { lt := lift_rel₂ has_lt.lt }
 
 end filter_product
 
