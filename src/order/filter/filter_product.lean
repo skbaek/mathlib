@@ -29,7 +29,7 @@ local notation `β*` := filterprod β φ
 
 namespace filter_product
 
-variables {α β φ} include α β φ
+variables {α β φ} include φ
 
 def of_seq : (α → β) → β* := @quotient.mk' (α → β) (bigly_equal β φ)
 
