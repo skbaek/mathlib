@@ -223,6 +223,27 @@ instance [has_le β] : has_le β* := { le := lift_rel₂ has_le.le }
 
 instance [has_lt β] : has_lt β* := { lt := lift_rel₂ has_lt.lt }
 
+instance [preorder β] : preorder β* :=
+{ le_refl := λ x, quotient.induction_on' x $ λ a, show _ ∈ _, 
+    by simp only [le_refl, (set.univ_def).symm, univ_sets],
+  le_trans := λ x y z, quotient.induction_on₃' x y z $ λ a b c hab hbc, 
+    by filter_upwards [hab, hbc] λ i hiab hibc, le_trans hiab hibc, 
+  ..filter_product.has_le }
+
+instance [partial_order β] : partial_order β* :=
+{ le_antisymm := λ x y, quotient.induction_on₂' x y $ λ a b hab hba, quotient.sound' $ 
+    have hI : {n | a n = b n} = _ ∩ _ := set.ext (λ n, le_antisymm_iff), 
+    show _ ∈ _, by rw hI; exact inter_sets _ hab hba
+  ..filter_product.preorder }
+
+instance [linear_order β] (U : is_ultrafilter φ) : linear_order β* :=
+{ le_total := λ x y, quotient.induction_on₂' x y $ λ a b, 
+    have hS : _ ⊆ {i | b i ≤ a i} := λ i, le_of_not_le,
+    or.cases_on (mem_or_compl_mem_of_ultrafilter U {i | a i ≤ b i})
+      (λ h, or.inl h) 
+      (λ h, or.inr (sets_of_superset _ h hS))
+  ..filter_product.partial_order }
+
 end filter_product
 
 end filter
