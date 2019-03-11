@@ -20,8 +20,7 @@ def bigly_equal : setoid (α → β) :=
 ⟨ λ a b, {n | a n = b n} ∈ φ,
   λ a, by simp only [eq_self_iff_true, (set.univ_def).symm, univ_sets], 
   λ a b ab, by simpa only [eq_comm], 
-  λ a b c ab bc, sets_of_superset φ (inter_sets φ ab bc) 
-    (λ n (r : a n = b n ∧ b n = c n), eq.trans r.1 r.2)⟩
+  λ a b c ab bc, sets_of_superset φ (inter_sets φ ab bc) (λ n r, eq.trans r.1 r.2)⟩
 
 /-- Ultraproduct, but on a general filter -/
 def filterprod := quotient (bigly_equal β φ)
