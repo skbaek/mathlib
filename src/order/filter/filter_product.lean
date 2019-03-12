@@ -8,6 +8,7 @@ the construction of the hyperreals.
 
 import data.real.basic
 import order.filter.basic
+import data.set.basic
 
 universes u v
 variables {α : Type u} (β : Type v) (φ : filter α)
@@ -67,6 +68,12 @@ begin
   exact NT rs
 end
 
+theorem of_seq_fun (f g : α → β) (h : β → β) (H : {n : α | f n = h (g n) } ∈ φ) : 
+of_seq f = (lift h) (@of_seq _ _ φ g) := quotient.sound' H
+
+theorem of_seq_fun₂ (f g₁ g₂ : α → β) (h : β → β → β) (H : {n : α | f n = h (g₁ n) (g₂ n) } ∈ φ) : 
+of_seq f = (lift₂ h) (@of_seq _ _ φ g₁) (@of_seq _ _ φ g₂) := quotient.sound' H
+
 instance coe_filterprod : has_coe β β* := ⟨ of ⟩
 
 instance [has_add β] : has_add β* := { add := lift₂ has_add.add }
@@ -123,9 +130,9 @@ instance [semigroup β] : semigroup β* :=
 
 instance [monoid β] : monoid β* :=
 { one_mul := λ x, quotient.induction_on' x 
-    (λ a, quotient.sound'(by simp only [one_mul]; apply (setoid.iseqv _).1)),
+    (λ a, quotient.sound' (by simp only [one_mul]; apply (setoid.iseqv _).1)),
   mul_one := λ x, quotient.induction_on' x 
-    (λ a, quotient.sound'(by simp only [mul_one]; apply (setoid.iseqv _).1)), 
+    (λ a, quotient.sound' (by simp only [mul_one]; apply (setoid.iseqv _).1)), 
   ..filter_product.semigroup,
   ..filter_product.has_one }
 
@@ -247,11 +254,36 @@ end filter_product
 
 end filter
 
-section hyperreal
-variables (ψ : filter ℕ) (V : filter.is_ultrafilter ψ) include V
+namespace hyperreal
 
-/-- Hyperreal numbers on a general ultrafilter -/
-def hyperreal := filter.filterprod ℝ ψ
+open filter filter.filter_product
+
+/-- Hyperreal numbers on the ultrafilter extending the cofinite filter -/
+@[reducible] def hyperreal := filter.filterprod ℝ (@hyperfilter ℕ)
 notation `ℝ*` := hyperreal
+
+/-- A sample infinitesimal hyperreal-/
+noncomputable def epsilon : ℝ* := of_seq (λ n, n⁻¹)
+
+/-- A sample infinite hyperreal-/
+noncomputable def omega : ℝ* := of_seq (λ n, n)
+
+local notation `ε` := epsilon
+local notation `ω` := omega
+
+theorem epsilon_eq_inv_omega : ε = ω⁻¹ := rfl
+
+theorem inv_epsilon_eq_omega : ε⁻¹ = ω := 
+  @inv_inv' _ (@filter_product.discrete_field _ ℝ _ (by apply_instance) 
+    (is_ultrafilter_hyperfilter set.infinite_univ_nat)) ω
+
+theorem epsilon_mul_omega : ε * ω = 1 := quotient.sound' $
+  have h : ∀ n : ℕ, (n : ℝ)⁻¹ * ↑n = 1 ↔ (n : ℝ) ≠ 0 := λ n, 
+  ⟨ λ c e, by rw [e, inv_zero, zero_mul] at c; exact zero_ne_one c,
+    inv_mul_cancel ⟩,
+  have r : {n : ℕ | n ≠ 0} = - {n : ℕ | n = 0} := rfl,
+  have h0 : {n | n = 0} = {0} := set.ext $ λ n, (set.mem_singleton_iff).symm, 
+  by show _ ∈ _; simp only [function.const, nat.cast_ne_zero, h, r, h0];
+  exact hyper_of_cofinite set.infinite_univ_nat (set.finite_singleton _)
 
 end hyperreal
