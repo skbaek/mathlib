@@ -262,6 +262,12 @@ open filter filter.filter_product
 @[reducible] def hyperreal := filter.filterprod ℝ (@hyperfilter ℕ)
 notation `ℝ*` := hyperreal
 
+noncomputable instance : discrete_field ℝ* := 
+filter_product.discrete_field (is_ultrafilter_hyperfilter set.infinite_univ_nat)
+
+noncomputable instance : linear_order ℝ* :=
+filter_product.linear_order (is_ultrafilter_hyperfilter set.infinite_univ_nat)
+
 /-- A sample infinitesimal hyperreal-/
 noncomputable def epsilon : ℝ* := of_seq (λ n, n⁻¹)
 
@@ -273,9 +279,7 @@ local notation `ω` := omega
 
 theorem epsilon_eq_inv_omega : ε = ω⁻¹ := rfl
 
-theorem inv_epsilon_eq_omega : ε⁻¹ = ω := 
-  @inv_inv' _ (@filter_product.discrete_field _ ℝ _ (by apply_instance) 
-    (is_ultrafilter_hyperfilter set.infinite_univ_nat)) ω
+theorem inv_epsilon_eq_omega : ε⁻¹ = ω := @inv_inv' _ _ ω
 
 theorem epsilon_mul_omega : ε * ω = 1 := quotient.sound' $
   have h : ∀ n : ℕ, (n : ℝ)⁻¹ * ↑n = 1 ↔ (n : ℝ) ≠ 0 := λ n, 
