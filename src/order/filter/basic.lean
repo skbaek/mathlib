@@ -1712,8 +1712,8 @@ lemma hyperfilter_le_cofinite (hi : set.infinite (@set.univ α)) : @hyperfilter 
 lemma is_ultrafilter_hyperfilter (hi : set.infinite (@set.univ α)) : is_ultrafilter (@hyperfilter α) := 
   (ultrafilter_of_spec (cofinite_ne_bot hi)).2
 
-theorem not_hyper_of_finite (hi : set.infinite (@set.univ α)) {s : set α} 
-: set.finite s → s ∉ (@hyperfilter α).sets :=
+theorem not_hyper_of_finite (hi : set.infinite (@set.univ α)) {s : set α} :
+set.finite s → s ∉ (@hyperfilter α).sets :=
   λ hf hy, 
   have hx : -s ∉ hyperfilter.sets := λ hs, 
     (ultrafilter_iff_compl_mem_iff_not_mem.mp (is_ultrafilter_hyperfilter hi) s).mp hs hy,
@@ -1721,14 +1721,14 @@ theorem not_hyper_of_finite (hi : set.infinite (@set.univ α)) {s : set α}
     rwa [set.mem_set_of_eq, lattice.neg_neg],
   hx $ hyperfilter_le_cofinite hi ht
 
-theorem hyper_of_cofinite (hi : set.infinite (@set.univ α)) {s : set α} 
-: set.finite s → -s ∈ (@hyperfilter α).sets :=
+theorem hyper_of_cofinite (hi : set.infinite (@set.univ α)) {s : set α} :
+set.finite s → -s ∈ (@hyperfilter α).sets :=
   λ hf, (ultrafilter_iff_compl_mem_iff_not_mem.mp 
     (is_ultrafilter_hyperfilter hi) s).mpr $ 
     not_hyper_of_finite hi hf
 
-theorem hyper_of_cofinite' (hi : set.infinite (@set.univ α)) {s : set α} 
-: set.finite (-s) → s ∈ (@hyperfilter α).sets := 
+theorem hyper_of_cofinite' (hi : set.infinite (@set.univ α)) {s : set α} :
+set.finite (-s) → s ∈ (@hyperfilter α).sets := 
   λ hf, have h : _ := hyper_of_cofinite hi hf,
   by rwa [lattice.neg_neg] at h
 
