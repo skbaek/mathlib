@@ -12,8 +12,6 @@ import init.core init.data.basic
 namespace relator
 universe variables u₁ u₂ v₁ v₂
 
-reserve infixr ` ⇒ `:40
-
 /- TODO(johoelzl):
  * should we introduce relators of datatypes as recursive function or as inductive
 predicate? For now we stick to the recursor approach.
@@ -29,12 +27,12 @@ variables (R : α → β → Prop) (S : γ → δ → Prop)
 def lift_fun (f : α → γ) (g : β → δ) : Prop :=
 ∀{a b}, R a b → S (f a) (g b)
 
-infixr ⇒ := lift_fun
-
 end
 
+local infixr ` ⇒ `:40 := lift_fun
+
 section
-variables {α : Type u₁} {β : out_param $ Type u₂} (R : out_param $ α → β → Prop)
+variables {α : Type u₁} {β : Type u₂} (R : α → β → Prop)
 
 @[class] def right_total := ∀b, ∃a, R a b
 @[class] def left_total := ∀a, ∃b, R a b
@@ -45,8 +43,8 @@ end
 section
 variables {α : Type u₁} {β : Type u₂} (R : α → β → Prop)
 
-@[class] def left_unique := ∀{a b c}, R a b → R c b → a = c
-@[class] def right_unique := ∀{a b c}, R a b → R a c → b = c
+@[class] def left_unique := ∀⦃a b c⦄, R a b → R c b → a = c
+@[class] def right_unique := ∀⦃a b c⦄, R a b → R a c → b = c
 
 lemma rel_forall_of_right_total [t : right_total R] : ((R ⇒ implies) ⇒ implies) (λp, ∀i, p i) (λq, ∀i, q i) :=
 assume p q Hrel H b, exists.elim (t b) (assume a Rab, Hrel Rab (H _))
@@ -72,7 +70,7 @@ iff.mpr (he ab cb) this
 
 end
 
-lemma rel_imp : (iff ⇒ (iff  ⇒ iff)) implies implies :=
+lemma rel_imp : (iff ⇒ (iff ⇒ iff)) implies implies :=
 assume p q h r s l, imp_congr h l
 
 lemma rel_not : (iff ⇒ iff) not not :=
@@ -84,7 +82,7 @@ instance bi_total_eq {α : Type u₁} : relator.bi_total (@eq α) :=
 variables {α : Type*} {β : Type*} {γ : Type*} {δ : Type*}
 variables {r : α → β → Prop} {p : β → γ → Prop} {q : γ → δ → Prop}
 
-def bi_unique (r : α → β → Prop) : Prop := left_unique r ∧ right_unique r
+@[class] def bi_unique (r : α → β → Prop) : Prop := left_unique r ∧ right_unique r
 
 lemma left_unique_flip (h : left_unique r) : right_unique (flip r)
 | a b c h₁ h₂ := h h₁ h₂
@@ -98,7 +96,7 @@ assume a b h₁ c d h₂, or_congr h₁ h₂
 lemma rel_iff : ((↔) ⇒ (↔) ⇒ (↔)) (↔) (↔) :=
 assume a b h₁ c d h₂, iff_congr h₁ h₂
 
-lemma rel_eq {r : α → β → Prop} (hr : bi_unique r) : (r ⇒ r ⇒ (↔)) (=) (=) :=
+lemma rel_eq (r : α → β → Prop) [hr : bi_unique r] : (r ⇒ r ⇒ (↔)) (=) (=) :=
 assume a b h₁ c d h₂,
 iff.intro
   begin intro h, subst h, exact hr.right h₁ h₂ end
