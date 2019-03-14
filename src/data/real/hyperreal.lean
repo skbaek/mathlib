@@ -29,13 +29,22 @@ theorem epsilon_eq_inv_omega : ε = ω⁻¹ := rfl
 
 theorem inv_epsilon_eq_omega : ε⁻¹ = ω := @inv_inv' _ _ ω
 
+lemma epsilon_ne_zero : ε ≠ 0 := λ he, 
+have he' : {n : ℕ | (n : ℝ)⁻¹ = 0}  ∈ _ := quotient.exact' he,
+by simp only [inv_eq_zero, nat.cast_eq_zero, set.set_of_eq_eq_singleton] at he';
+exact nmem_hyperfilter_of_finite set.infinite_univ_nat (set.finite_singleton _) he'
+
+lemma omega_ne_zero : ω ≠ 0 := λ he,
+have he' : {n : ℕ | (n : ℝ) = 0} ∈ _ := quotient.exact' he,
+by simp only [nat.cast_eq_zero, set.set_of_eq_eq_singleton] at he';
+exact nmem_hyperfilter_of_finite set.infinite_univ_nat (set.finite_singleton _) he'
+
 theorem epsilon_mul_omega : ε * ω = 1 := quotient.sound' $
   have h : ∀ n : ℕ, (n : ℝ)⁻¹ * ↑n = 1 ↔ (n : ℝ) ≠ 0 := λ n, 
   ⟨ λ c e, by rw [e, inv_zero, zero_mul] at c; exact zero_ne_one c,
     inv_mul_cancel ⟩,
   have r : {n : ℕ | n ≠ 0} = - {n : ℕ | n = 0} := rfl,
-  have h0 : {n | n = 0} = {0} := set.ext $ λ n, (set.mem_singleton_iff).symm, 
-  by show _ ∈ _; simp only [function.const, nat.cast_ne_zero, h, r, h0];
+  by show _ ∈ _; simp only [function.const, nat.cast_ne_zero, h, r, set.set_of_eq_eq_singleton];
   exact compl_mem_hyperfilter_of_finite set.infinite_univ_nat (set.finite_singleton _)
 
 end hyperreal
