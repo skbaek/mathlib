@@ -1715,9 +1715,9 @@ lemma is_ultrafilter_hyperfilter (hi : set.infinite (@set.univ α)) : is_ultrafi
 theorem nmem_hyperfilter_of_finite (hi : set.infinite (@set.univ α)) {s : set α} (hf : set.finite s) :
   s ∉ @hyperfilter α :=
 λ hy, 
-have hx : -s ∉ hyperfilter.sets := λ hs, 
-  (ultrafilter_iff_compl_mem_iff_not_mem.mp (is_ultrafilter_hyperfilter hi) s).mp hs hy,
-have ht : -s ∈ cofinite.sets := by show -s ∈ {s | _}; rwa [set.mem_set_of_eq, lattice.neg_neg],
+have hx : -s ∉ hyperfilter := 
+  λ hs, (ultrafilter_iff_compl_mem_iff_not_mem.mp (is_ultrafilter_hyperfilter hi) s).mp hs hy,
+have ht : -s ∈ cofinite := by show -s ∈ {s | _}; rwa [set.mem_set_of_eq, lattice.neg_neg],
 hx $ hyperfilter_le_cofinite hi ht
 
 theorem compl_mem_hyperfilter_of_finite (hi : set.infinite (@set.univ α)) {s : set α} (hf : set.finite s) :
