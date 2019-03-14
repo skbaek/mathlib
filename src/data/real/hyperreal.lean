@@ -5,7 +5,6 @@ Authors: Abhimanyu Pallavi Sudhir
 Construction of the hyperreal numbers as an ultraproduct of real sequences.
 -/
 
-import data.real.basic
 import data.real.nnreal
 import order.filter.filter_product
 
