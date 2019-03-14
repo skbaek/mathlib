@@ -1720,14 +1720,14 @@ have hx : -s ∉ hyperfilter.sets := λ hs,
 have ht : -s ∈ cofinite.sets := by show -s ∈ {s | _}; rwa [set.mem_set_of_eq, lattice.neg_neg],
 hx $ hyperfilter_le_cofinite hi ht
 
-theorem hyper_of_cofinite (hi : set.infinite (@set.univ α)) {s : set α} (hf : set.finite s) :
-  -s ∈ (@hyperfilter α).sets :=
+theorem compl_mem_hyperfilter_of_finite (hi : set.infinite (@set.univ α)) {s : set α} (hf : set.finite s) :
+  -s ∈ @hyperfilter α :=
 (ultrafilter_iff_compl_mem_iff_not_mem.mp (is_ultrafilter_hyperfilter hi) s).mpr $ 
 nmem_hyperfilter_of_finite hi hf
 
-theorem hyper_of_cofinite' (hi : set.infinite (@set.univ α)) {s : set α} (hf : set.finite (-s)) :
-  s ∈ (@hyperfilter α).sets := 
-have h : _ := hyper_of_cofinite hi hf,
+theorem mem_hyperfilter_of_finite_compl (hi : set.infinite (@set.univ α)) {s : set α} (hf : set.finite (-s)) :
+  s ∈ @hyperfilter α := 
+have h : _ := compl_mem_hyperfilter_of_finite hi hf,
 by rwa [lattice.neg_neg] at h
 
 section
