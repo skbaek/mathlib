@@ -72,7 +72,7 @@ theorem of_seq_fun (f g : α → β) (h : β → β) (H : {n : α | f n = h (g n
   of_seq f = (lift h) (@of_seq _ _ φ g) := quotient.sound' H
 
 theorem of_seq_fun₂ (f g₁ g₂ : α → β) (h : β → β → β) (H : {n : α | f n = h (g₁ n) (g₂ n) } ∈ φ) : 
-of_seq f = (lift₂ h) (@of_seq _ _ φ g₁) (@of_seq _ _ φ g₂) := quotient.sound' H
+  of_seq f = (lift₂ h) (@of_seq _ _ φ g₁) (@of_seq _ _ φ g₂) := quotient.sound' H
 
 instance coe_filterprod : has_coe β β* := ⟨ of ⟩
 
