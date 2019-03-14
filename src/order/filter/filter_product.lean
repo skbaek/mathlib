@@ -254,12 +254,13 @@ end filter_product
 
 end filter
 
-namespace hyperreal
-
 open filter filter.filter_product
 
 /-- Hyperreal numbers on the ultrafilter extending the cofinite filter -/
 @[reducible] def hyperreal := filter.filterprod ℝ (@hyperfilter ℕ)
+
+namespace hyperreal
+
 notation `ℝ*` := hyperreal
 
 noncomputable instance : discrete_field ℝ* := 
@@ -288,6 +289,6 @@ theorem epsilon_mul_omega : ε * ω = 1 := quotient.sound' $
   have r : {n : ℕ | n ≠ 0} = - {n : ℕ | n = 0} := rfl,
   have h0 : {n | n = 0} = {0} := set.ext $ λ n, (set.mem_singleton_iff).symm, 
   by show _ ∈ _; simp only [function.const, nat.cast_ne_zero, h, r, h0];
-  exact hyper_of_cofinite set.infinite_univ_nat (set.finite_singleton _)
+  exact compl_mem_hyperfilter_of_finite set.infinite_univ_nat (set.finite_singleton _)
 
 end hyperreal
