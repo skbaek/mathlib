@@ -210,8 +210,6 @@ noncomputable instance [discrete_field β] (U : is_ultrafilter φ) : discrete_fi
 
 instance [has_le β] : has_le β* := { le := lift_rel₂ has_le.le }
 
-instance [has_lt β] : has_lt β* := { lt := lift_rel₂ has_lt.lt }
-
 instance [preorder β] : preorder β* :=
 { le_refl := λ x, quotient.induction_on' x $ λ a, show _ ∈ _, 
     by simp only [le_refl, (set.univ_def).symm, univ_sets],
@@ -295,13 +293,32 @@ lemma of_rel₂ (R : β → β → Prop) (x y : β) (NT: φ ≠ ⊥) :
   simp only [h, set.set_of_false, empty_in_sets_eq_bot] at hxy;
   exact NT hxy ⟩
 
-lemma of_lt_of_lt [has_lt β] (x y : β) : x < y → of x < (of y : β*) := of_rel_of_rel₂ _ _ _
-
 lemma of_le_of_le [has_le β] (x y : β) : x ≤ y → of x ≤ (of y : β*) := of_rel_of_rel₂ _ _ _
 
-lemma of_lt [has_lt β] (x y : β) (NT: φ ≠ ⊥) : x < y ↔ of x < (of y : β*) := of_rel₂ _ _ _ NT
-
 lemma of_le [has_le β] (x y : β) (NT: φ ≠ ⊥) : x ≤ y ↔ of x ≤ (of y : β*) := of_rel₂ _ _ _ NT
+
+lemma lt_def [K : preorder β] (U : is_ultrafilter φ) (x y : β*) : 
+  (x < y) ↔ @lift_rel₂ _ _ φ K.lt x y := 
+⟨ quotient.induction_on₂' x y $ λ a b ⟨hxy, hyx⟩,
+  have hyx' : _ := (ultrafilter_iff_compl_mem_iff_not_mem.mp U _).mpr hyx,
+  by filter_upwards [hxy, hyx'] λ i hi1 hi2, lt_iff_le_not_le.mpr ⟨hi1, hi2⟩, 
+  quotient.induction_on₂' x y $ λ a b hab, 
+  ⟨ by filter_upwards [hab] λ i, le_of_lt, λ hba, 
+    have hc : ∀ i : α, a i < b i ∧ b i ≤ a i → false := λ i ⟨h1, h2⟩, not_lt_of_le h2 h1,
+    have h0 : ∅ = {i : α | a i < b i} ∩ {i : α | b i ≤ a i} := 
+    by simp only [set.inter_def, hc, set.set_of_false, eq_self_iff_true, set.mem_set_of_eq],
+    U.1 $ empty_in_sets_eq_bot.mp $ by rw [h0]; exact inter_sets _ hab hba ⟩ ⟩
+
+lemma lt_def' [K : preorder β] (U : is_ultrafilter φ) : 
+  filter_product.preorder.lt = @lift_rel₂ _ _ φ K.lt := 
+by ext x y; exact lt_def U x y
+
+lemma of_lt_of_lt [preorder β] (U : is_ultrafilter φ) (x y : β) : 
+  x < y → of x < (of y : β*) := 
+by rw lt_def U; apply of_rel_of_rel₂
+
+lemma of_lt [preorder β] (x y : β) (U : is_ultrafilter φ) : x < y ↔ of x < (of y : β*) := 
+by rw lt_def U; exact of_rel₂ _ _ _ U.1
 
 end filter_product
 
