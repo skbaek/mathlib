@@ -57,20 +57,6 @@ def lift_rel₂ (R : β → β → Prop) : β* → β* → Prop :=
   ⟨ λ ha, by filter_upwards [h₁, h₂, ha] λ i hi1 hi2 hia, by simpa [hi1.symm, hi2.symm],
     λ hb, by filter_upwards [h₁, h₂, hb] λ i hi1 hi2 hib, by simpa [hi1.symm.symm, hi2.symm.symm] ⟩
 
-theorem of_inj (NT : φ ≠ ⊥): function.injective (@of _ β φ) :=
-begin
-  intros r s rs, by_contra N,
-  rw [of, of, of_seq, quotient.eq', bigly_equal] at rs, 
-  simp only [N, set.set_of_false, empty_in_sets_eq_bot] at rs,
-  exact NT rs
-end
-
-theorem of_seq_fun (f g : α → β) (h : β → β) (H : {n : α | f n = h (g n) } ∈ φ) : 
-  of_seq f = (lift h) (@of_seq _ _ φ g) := quotient.sound' H
-
-theorem of_seq_fun₂ (f g₁ g₂ : α → β) (h : β → β → β) (H : {n : α | f n = h (g₁ n) (g₂ n) } ∈ φ) : 
-  of_seq f = (lift₂ h) (@of_seq _ _ φ g₁) (@of_seq _ _ φ g₂) := quotient.sound' H
-
 instance coe_filterprod : has_coe β β* := ⟨ of ⟩
 
 instance [has_add β] : has_add β* := { add := lift₂ has_add.add }
@@ -246,6 +232,76 @@ instance [linear_order β] (U : is_ultrafilter φ) : linear_order β* :=
       (λ h, or.inl h) 
       (λ h, or.inr (sets_of_superset _ h hS))
   ..filter_product.partial_order }
+
+theorem of_inj (NT : φ ≠ ⊥): function.injective (@of _ β φ) :=
+begin
+  intros r s rs, by_contra N,
+  rw [of, of, of_seq, quotient.eq', bigly_equal] at rs, 
+  simp only [N, set.set_of_false, empty_in_sets_eq_bot] at rs,
+  exact NT rs
+end
+
+theorem of_seq_fun (f g : α → β) (h : β → β) (H : {n : α | f n = h (g n) } ∈ φ) : 
+  of_seq f = (lift h) (@of_seq _ _ φ g) := quotient.sound' H
+
+theorem of_seq_fun₂ (f g₁ g₂ : α → β) (h : β → β → β) (H : {n : α | f n = h (g₁ n) (g₂ n) } ∈ φ) : 
+  of_seq f = (lift₂ h) (@of_seq _ _ φ g₁) (@of_seq _ _ φ g₂) := quotient.sound' H
+
+lemma of_eq_coe (x : β) : of x = (↑x : β*) := rfl
+
+lemma of_id (x : β) : of x = (x : β*) := rfl
+
+lemma of_eq (x y : β) (NT : φ ≠ ⊥) : x = y ↔ of x = (of y : β*) := 
+⟨λ h, by rw h, by apply of_inj NT⟩
+
+lemma of_ne (x y : β) (NT : φ ≠ ⊥) : x ≠ y ↔ of x ≠ (of y : β*) := 
+by show ¬ x = y ↔ of x ≠ of y; rwa [of_eq]
+
+lemma of_eq_zero [has_zero β] (NT : φ ≠ ⊥) (x : β) : x = 0 ↔ of x = (0 : β*) := 
+of_eq _ _ NT
+
+lemma of_ne_zero [has_zero β] (NT : φ ≠ ⊥) (x : β) : x ≠ 0 ↔ of x ≠ (0 : β*) :=
+of_ne _ _ NT
+
+lemma of_zero [has_zero β] : of 0 = (0 : β*) := rfl
+
+lemma of_add [has_add β] (x y : β) : of (x + y) = of x + (of y : β*) := rfl
+
+lemma of_neg [has_neg β] (x : β) : of (- x) = - (of x : β*) := rfl
+
+lemma of_one [has_one β] : of 1 = (1 : β*) := rfl
+
+lemma of_mul [has_mul β] (x y : β) : of (x * y) = of x * (of y : β*) := rfl
+
+lemma of_rel_of_rel (R : β → Prop) (x : β) : 
+  R x → (lift_rel R) (of x : β*) := 
+λ hx, by show {i | R x} ∈ _; simp only [hx]; exact univ_mem_sets  
+
+lemma of_rel (R : β → Prop) (x : β) (NT: φ ≠ ⊥) : 
+  R x ↔ (lift_rel R) (of x : β*) :=
+⟨ of_rel_of_rel _ _, 
+  λ hxy, by change {i | R x} ∈ _ at hxy; by_contra h;
+  simp only [h, set.set_of_false, empty_in_sets_eq_bot] at hxy;
+  exact NT hxy ⟩
+
+lemma of_rel_of_rel₂ (R : β → β → Prop) (x y : β) : 
+  R x y → (lift_rel₂ R) (of x) (of y : β*) :=
+λ hxy, by show {i | R x y} ∈ _; simp only [hxy]; exact univ_mem_sets  
+
+lemma of_rel₂ (R : β → β → Prop) (x y : β) (NT: φ ≠ ⊥) : 
+  R x y ↔ (lift_rel₂ R) (of x) (of y : β*) :=
+⟨ of_rel_of_rel₂ _ _ _, 
+  λ hxy, by change {i | R x y} ∈ _ at hxy; by_contra h;
+  simp only [h, set.set_of_false, empty_in_sets_eq_bot] at hxy;
+  exact NT hxy ⟩
+
+lemma of_lt_of_lt [has_lt β] (x y : β) : x < y → of x < (of y : β*) := of_rel_of_rel₂ _ _ _
+
+lemma of_le_of_le [has_le β] (x y : β) : x ≤ y → of x ≤ (of y : β*) := of_rel_of_rel₂ _ _ _
+
+lemma of_lt [has_lt β] (x y : β) (NT: φ ≠ ⊥) : x < y ↔ of x < (of y : β*) := of_rel₂ _ _ _ NT
+
+lemma of_le [has_le β] (x y : β) (NT: φ ≠ ⊥) : x ≤ y ↔ of x ≤ (of y : β*) := of_rel₂ _ _ _ NT
 
 end filter_product
 
