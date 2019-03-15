@@ -6,6 +6,7 @@ Construction of the hyperreal numbers as an ultraproduct of real sequences.
 -/
 
 import data.real.basic algebra.field order.filter.filter_product
+local attribute [instance] classical.prop_decidable
 
 open filter filter.filter_product
 
