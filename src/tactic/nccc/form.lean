@@ -17,8 +17,8 @@ inductive form : Type
 local notation  `⊤*` := form.true
 local notation  `⊥*` := form.false
 local notation  `⟪` l `⟫` := form.lit l
-local notation  p `∧*` q := form.and p q
 local notation  p `∨*` q := form.or p q
+local notation  p `∧*` q := form.and p q
 local notation  `∀*` := form.fa
 local notation  `∃*` := form.ex
 
@@ -31,6 +31,8 @@ local notation  `∃*` := form.ex
 -- | (∃* p)  := sorry
 
 namespace form
+
+/- Semantics -/
 
 local notation f `₀↦` a := update_zero a f
 
@@ -54,14 +56,35 @@ def valsat (α p) : Prop :=
 def sat (α p) : Prop :=
 ∃ M : model α, ∃ v, (M ; v ⊨ p)
 
+/- Predicates on formulas -/
+
+def quant_free : form → Prop
+| ⊤*       := _root_.true
+| ⊥*       := _root_.true
+| ⟪l⟫      := _root_.true
+| (p ∧* q) := quant_free p ∧ quant_free q
+| (p ∨* q) := quant_free p ∧ quant_free q
+| (∀* p)   := _root_.false
+| (∃* p)   := _root_.false
+
+/- Increment all variable indices equal to or greater than k by 1. -/
+def incr_vdx : nat → form → form
+| k ⊤*           := ⊤*
+| k ⊥*           := ⊥*
+| k ⟪⟨b, m, ts⟩⟫ := ⟪⟨b, m, ts.map (term.incr_vdx k)⟩⟫
+| k (p ∨* q)     := (incr_vdx k p) ∨* (incr_vdx k q)
+| k (p ∧* q)     := (incr_vdx k p) ∧* (incr_vdx k q)
+| k (∀* p)       := ∀* (incr_vdx (k + 1) p)
+| k (∃* p)       := ∃* (incr_vdx (k + 1) p)
+
 def subst : nat → term → form → form
 | k s ⊤*         := ⊤*
 | k s ⊥*         := ⊥*
 | k s ⟪⟨b,m,ts⟩⟫ := ⟪⟨b,m,ts.map (term.subst k s)⟩⟫
 | k s (p ∨* q)  := (subst k s p) ∨* (subst k s q)
 | k s (p ∧* q)  := (subst k s p) ∧* (subst k s q)
-| k s (∀* p)    := ∀* (subst (k+1) s.incr_vdx p)
-| k s (∃* p)    := ∃* (subst (k+1) s.incr_vdx p)
+| k s (∀* p)    := ∀* (subst (k+1) (s.incr_vdx 0) p)
+| k s (∃* p)    := ∃* (subst (k+1) (s.incr_vdx 0) p)
 
 end form
 
@@ -108,6 +131,15 @@ lemma univ_close_core_of_valid (p : form) (h1 : p.valid α) :
       intro _; apply univ_close_core_of_valid }
   end
 
+def fresh_vdx : form → nat
+| ⊤* := 0
+| ⊥* := 0
+| ⟪⟨s, m, ts⟩⟫ := list.max (ts.map term.fresh_vdx)
+| (p ∨* q)     := max (fresh_vdx p) (fresh_vdx q)
+| (p ∧* q)     := max (fresh_vdx p) (fresh_vdx q)
+| (∀* p)       := fresh_vdx p - 1
+| (∃* p)       := fresh_vdx p - 1
+
 def fresh_sdx : form → nat
 | ⊤* := 0
 | ⊥* := 0
@@ -132,6 +164,18 @@ def free_vars : nat → form → list nat
 | k (p ∨* q)   := list.union (free_vars k p) (free_vars k q)
 | k (∀* p)     := free_vars (k+1) p
 | k (∃* p)     := free_vars (k+1) p
+
+def exist_open : form → form
+| (∃* p) := exist_open p
+| p      := p
+
+def closed (p : form) : Prop := fresh_vdx p = 0
+
+def valsat_exist_open_imp (α : Type) (p : form) :
+closed p → (exist_open p).valsat α → p.valid α := sorry
+
+
+
   #exit
 
   #exit
@@ -167,7 +211,6 @@ focus [ skip, skip, skip,
   `[ apply exists_iff_exists, intro ] ]
 
 
-def closed (p : form) : Prop := p.fresh_idx = 0
 
 --instance dec_max_idx_lt : ∀ p : form, ∀ k, decidable (p.max_idx_lt k) :=
 --begin

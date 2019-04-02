@@ -24,7 +24,28 @@ def max [has_zero α] [decidable_linear_order α] : list α → α
 | []      := 0
 | (a::as) := _root_.max a as.max
 
+def except : nat → list α → list α 
+| _     []      := []
+| 0     (a::as) := as
+| (k+1) (a::as) := except k as
+
+
+
+
+#exit
+def remove [decidable_eq α] (as : list α) (a : α) :=
+as.filter (λ x, x ≠ a)
+
+notation l `-` a := remove l a
+
+#check list.diff
+example : [0,1,2] \ {1} = [0,2] :=
+begin
+  refl,
+end
+
 end list
+
 
 #exit
 

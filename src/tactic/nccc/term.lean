@@ -4,7 +4,7 @@ variable {α : Type}
 
 open tactic
 
-@[derive has_reflect]
+@[derive has_reflect, derive decidable_eq]
 inductive term : Type
 | var : nat → term
 | fnc : nat → term
@@ -12,7 +12,7 @@ inductive term : Type
 
 local notation  `#` := term.var
 local notation  `&` := term.fnc
-local notation  t1 `^*` t2 := term.app t1 t2
+local notation  t `^*` s := term.app t s
 
 namespace term
 
@@ -21,18 +21,20 @@ def repr : term → string
 | (& k) := "C" ++ k.to_subs
 | (t ^* s) := "(" ++ t.repr ++ " " ++ s.repr ++ ")"
 
-meta instance has_repr : has_repr term := ⟨repr⟩
+instance has_repr : has_repr term := ⟨repr⟩
+
+meta instance has_to_format : has_to_format term := ⟨λ x, repr x⟩
 
 def mk_app (t : term) (ts : list term) : term :=
 list.foldl app t ts
 
 
-@[simp] def fresh_idx : term → nat
+@[simp] def fresh_vdx : term → nat
 | (# m)      := m + 1
 | (& _)      := 0
-| (t1 ^* t2) := max t1.fresh_idx t2.fresh_idx
+| (t1 ^* t2) := max t1.fresh_vdx t2.fresh_vdx
 
-def is_fresh_idx (k : nat) (t : term) : Prop := t.fresh_idx ≤ k
+def is_fresh_vdx (k : nat) (t : term) : Prop := t.fresh_vdx ≤ k
 
 --instance dec_max_idx_lt : ∀ k t, decidable (max_idx_lt k t)
 --| := by apply_instance
@@ -64,6 +66,11 @@ def fresh_sdx : term → nat
 | (& n)    := n + 1
 | (t ^* s) := max (fresh_sdx t) (fresh_sdx s)
 
+def vdxs : term → list nat
+| (# m)    := [m]
+| (& _)    := []
+| (t ^* s) := vdxs t ∪ vdxs s
+
 def free_vars (k : nat) : term → list nat
 | (# m)      := if k ≤ m then [m] else []
 | (& _)      := []
@@ -74,10 +81,10 @@ def subst (m s) : term → term
 | (& k)    := (& k)
 | (t ^* u) := (subst t) ^* (subst u)
 
-def incr_vdx : term → term
-| (# k)      := # (k+1)
-| (& k)      := (& k)
-| (t ^* s) := t.incr_vdx ^* s.incr_vdx
+def incr_vdx : nat → term → term
+| k (#m)     := if k ≤ m then #(m + 1) else #m
+| k (&m)     := (& m)
+| k (t ^* s) := (incr_vdx k t) ^* (incr_vdx k s)
 
 #exit
 
