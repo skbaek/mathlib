@@ -4,6 +4,18 @@ variables {α : Type} {p q r : Prop}
 
 lemma imp_of_imp (p) {q} : (p → q) → (p → q) := id
 
+-- lemma exists_of_exists {p q : α → Prop} :
+--   (∀ x, p x → q x) → (∃ x, p x) → ∃ x, q x :=
+-- begin
+--   intros h1 h2, 
+--   cases h2 with a h2,
+--   refine ⟨a, h1 _ h2⟩, 
+-- end
+-- 
+-- lemma forall_of_forall {p q : α → Prop} :
+--   (∀ x, p x → q x) → (∀ x, p x) → ∀ x, q x :=
+-- by { intros h1 h2 a, apply h1 _ (h2 a) }
+
 namespace classical
 
 local attribute [instance] prop_decidable

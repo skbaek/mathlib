@@ -26,7 +26,7 @@ def skolemize_core : nat → form → (nat × form)
   (n, p' ∧* q')
 | k (∀* p) :=
   let (m, p') := skolemize_core k p in
-  let ts := (free_vars 1 p).map (term.fnc ∘ nat.pred) in
+  let ts := (p'.free_vdxs 1).map (term.fnc ∘ nat.pred) in
   (m + 1, p'.subst 0 (term.mk_app (& m) ts))
 | k (∃* p) :=
   let (m, p') := skolemize_core k p in

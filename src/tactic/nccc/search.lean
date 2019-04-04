@@ -1,53 +1,64 @@
-import .proof .misc
+import .misc .mat
 
 universes u v
 variables {α β : Type}
 
-local notation  `#` := term.var
-local notation  `&` := term.fnc
-local notation  t `^*` s := term.app t s
+local notation  `⅋` := term.fnc
+local notation  t ` s := term.app t s
 
 meta def clax : Type := list expr
 meta def subx : Type := list (nat × expr)
 
-@[reducible] meta def goal : Type := clax × mat × clax
+@[reducible] meta def search.goal : Type := clax × clax × mat
 
-meta def goal.to_format : goal → format 
-| ⟨Cx, M, Px⟩ := 
-  "(Clause : " ++ Cx.to_format ++ ", Matrix : " ++ M.to_format ++ 
-  ", Path : " ++ Px.to_format ++ ")"
+meta inductive search.rule : Type
+| start : nat → option subx → search.rule
+| red   : search.rule
+| ext   : nat → nat → option subx → search.rule 
 
-meta instance goal.has_to_format : has_to_format goal := ⟨goal.to_format⟩ 
-
-meta inductive rule : Type
-| start : nat → option subx → rule
-| red   : nat → rule
-| ext   : nat → nat → option subx → rule 
-
-meta def rule.to_format : rule → format 
-| (rule.start k σ) := "Start " ++ k.repr ++ " _"
-| (rule.red k )    := "Reduction " ++ k.repr 
-| (rule.ext k m σ) := "Extend " ++ k.repr ++ " " ++ m.repr ++ " _"
-
-meta instance rule.has_to_format : has_to_format rule := ⟨rule.to_format⟩ 
+-- 
+-- meta def goal.to_format : goal → format 
+-- | ⟨Cx, M, Px⟩ := 
+--   "(Clause : " ++ Cx.to_format ++ ", Matrix : " ++ M.to_format ++ 
+--   ", Path : " ++ Px.to_format ++ ")"
+-- 
+-- meta instance goal.has_to_format : has_to_format goal := ⟨goal.to_format⟩ 
+-- 
+-- 
+-- meta def rule.to_format : rule → format 
+-- | (rule.start k σ) := "Start " ++ k.repr ++ " _"
+-- | rule.red         := "Reduction" 
+-- | (rule.ext k m σ) := "Extend " ++ k.repr ++ " " ++ m.repr ++ " _"
+-- 
+-- meta instance rule.has_to_format : has_to_format rule := ⟨rule.to_format⟩ 
 
 meta structure search_state :=
 (max : nat)
 (lim : nat)
-(goals : list goal)
-(rules : list rule)
+(goals : list search.goal)
+(rules : list search.rule)
 
-meta def search_state.to_format : search_state → format 
-| ⟨m, l, gs, rs⟩ := 
-  "Max : " ++ m.repr ++ "\n" ++
-  "Lim : " ++ l.repr ++ "\n" ++
-  "Goals : " ++ gs.to_format ++ "\n" ++ 
-  "Rules : " ++ rs.to_format ++ "\n" 
-
-meta instance search_state.has_to_format : has_to_format search_state := 
-⟨search_state.to_format⟩ 
+-- meta def search_state.to_format : search_state → format 
+-- | ⟨m, l, gs, rs⟩ := 
+--   "Max : " ++ m.repr ++ "\n" ++
+--   "Lim : " ++ l.repr ++ "\n" ++
+--   "Goals : " ++ gs.to_format ++ "\n" ++ 
+--   "Rules : " ++ rs.to_format ++ "\n" 
+-- 
+-- meta instance search_state.has_to_format : has_to_format search_state := 
+-- ⟨search_state.to_format⟩ 
 
 @[reducible] meta def search := state_t search_state tactic
+
+meta def search.failed {α : Type} : search α := ⟨λ x, tactic.failed⟩
+
+meta def search.skip : search unit := ⟨λ x, return ⟨(), x⟩⟩  
+
+meta def option.to_search : option α → search α 
+| none     := search.failed
+| (some a) := return a
+
+namespace search
 
 meta def get_max : search nat := search_state.max <$> get
 meta def get_lim : search nat := search_state.lim <$> get
@@ -78,9 +89,6 @@ meta def push_rule (r : rule) : search unit :=
 do rs ← get_rules,
    set_rules (r::rs)
 
-meta def failed {α : Type} : search α := ⟨λ x, tactic.failed⟩
-
-meta def skip : search unit := ⟨λ x, return ⟨(), x⟩⟩  
 
 meta def backtrack (α : Type) : Type := (nat → search α) × nat
 
@@ -111,6 +119,7 @@ meta def subx.mk : list nat → tactic subx
      tx ← tactic.mk_meta_var `(term),
      return ((k,tx)::sx)
 
+#exit
 meta def subx.subst (k : nat) : subx → expr 
 | []          := `(# k)
 | ((m,tx)::σ) := 
@@ -163,7 +172,8 @@ match P.nth k with
 | none := failed
 | some N := 
   do comp_unify L N,
-     push_goal (C,M,P)
+     push_goal (C,M,P),
+     push_rule rule.red
 end
 
 meta def reduce : bsearch unit := 
@@ -178,9 +188,6 @@ def maxlen (l : list (list α)) : nat :=
 def mat.entry (M : mat) (i j : nat) : option lit := 
 do C ← M.nth j, C.nth i
 
-meta def option.to_search : option α → search α 
-| none     := failed
-| (some a) := return a
 
 meta def extend_aux (Lx : expr) (M : mat) (Cx Px : clax) (km : nat) : search unit := 
 let i : nat := km % maxlen M in 
@@ -223,10 +230,8 @@ do gs ← get_goals,
 local attribute [inline] state_t.orelse
 
 meta def loop : search unit :=
---do print "Current goals : ", 
---   get_goals >>= print,
-( (reduce >>> loop) <|> (extend >>> loop) <|>
-  (close >> loop) <|> finish )
+(reduce >>> loop) <|> (extend >>> loop) <|>
+  (close >> loop) <|> finish 
 
 meta def main : search unit := 
 pick_lim >>> pick_cla >>> loop 
@@ -239,6 +244,7 @@ meta def derive (M : mat) : tactic (list rule) :=
 (list.reverse ∘ search_state.rules) <$> prod.snd <$> 
   (mk_search_state M >>= @state_t.run search_state tactic unit main)
 
+#exit
 def socrates : mat := [[⟨tt, 0, [& 0]⟩, ⟨tt, 1, [& 1]⟩], [⟨ff, 0, [& 0]⟩], [⟨ff, 1, [& 1]⟩]]
 
 run_cmd derive socrates >>= tactic.trace

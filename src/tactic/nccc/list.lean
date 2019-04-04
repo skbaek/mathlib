@@ -25,11 +25,19 @@ def max [has_zero α] [decidable_linear_order α] : list α → α
 | (a::as) := _root_.max a as.max
 
 def except : nat → list α → list α 
-| _     []      := []
+| 0     []      := []
+| (k+1) []      := []
 | 0     (a::as) := as
-| (k+1) (a::as) := except k as
+| (k+1) (a::as) := a :: (except k as)
 
-
+lemma except_subset_self :
+  ∀ {k : nat} {as : list α}, as.except k ⊆ as
+| 0     []      a h := by cases h
+| (k+1) []      a h := by cases h
+| 0     (b::as) a h := or.inr h
+| (k+1) (b::as) a h := 
+  by { cases h, left, exact h,
+       right, apply except_subset_self h }
 
 
 #exit

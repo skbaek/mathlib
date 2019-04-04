@@ -2,6 +2,8 @@ import .lit .arity
 
 open tactic
 
+set_option pp.all true
+
 variables {α β : Type}
 
 @[derive has_reflect]
@@ -47,14 +49,14 @@ def holds (M : model α) : (nat → α) → form → Prop
 
 local notation M `;` v `⊨` p := holds M v p
 
-def valid (α p) : Prop :=
-∀ M : model α, ∀ v, (M ; v ⊨ p)
+def valid (α : Type) (p : form) : Prop :=
+∀ M : model α, ∀ v : nat →  α, (M ; v ⊨ p)
 
-def valsat (α p) : Prop :=
-∀ M : model α, ∃ v, (M ; v ⊨ p)
+def valsat (α : Type) (p : form) : Prop :=
+∀ M : model α, ∃ v : nat →  α, (M ; v ⊨ p)
 
-def sat (α p) : Prop :=
-∃ M : model α, ∃ v, (M ; v ⊨ p)
+def sat (α : Type) (p : form) : Prop :=
+∃ M : model α, ∃ v : nat →  α, (M ; v ⊨ p)
 
 /- Predicates on formulas -/
 
@@ -80,11 +82,20 @@ def incr_vdx : nat → form → form
 def subst : nat → term → form → form
 | k s ⊤*         := ⊤*
 | k s ⊥*         := ⊥*
-| k s ⟪⟨b,m,ts⟩⟫ := ⟪⟨b,m,ts.map (term.subst k s)⟩⟫
+| k s ⟪⟨b,m,ts⟩⟫ := ⟪⟨b,m,ts.map (term.subst [(k,s)])⟩⟫
 | k s (p ∨* q)  := (subst k s p) ∨* (subst k s q)
 | k s (p ∧* q)  := (subst k s p) ∧* (subst k s q)
 | k s (∀* p)    := ∀* (subst (k+1) (s.incr_vdx 0) p)
 | k s (∃* p)    := ∃* (subst (k+1) (s.incr_vdx 0) p)
+
+def free_vdxs : nat → form → list nat
+| k ⊤*         := []
+| k ⊥*         := []
+| k ⟪⟨s,m,ts⟩⟫ := ⋃ (ts.map (term.free_vdxs k))
+| k (p ∧* q)   := list.union (free_vdxs k p) (free_vdxs k q)
+| k (p ∨* q)   := list.union (free_vdxs k p) (free_vdxs k q)
+| k (∀* p)     := free_vdxs (k+1) p
+| k (∃* p)     := free_vdxs (k+1) p
 
 end form
 
@@ -112,17 +123,17 @@ def univ_close_core (p : form) :
   match symb_arity k p with
   | none   := ∀ u : unit, univ_close_core k M
   | some (tt,m) :=
-    ∀ r : arity α Prop m, univ_close_core k
+    ∀ r : arity  α Prop m, univ_close_core k
     {M with rels  := (k ↦ r.app_list false) M.rels}
   | some (ff,m) :=
-    ∀ f : arity α α m, univ_close_core k
+    ∀ f : arity  α  α m, univ_close_core k
     {M with funcs := (k ↦ f.app_list M.inhab) M.funcs}
   end
 
 lemma univ_close_core_of_valid (p : form) (h1 : p.valid α) :
-  ∀ (k : nat) (M : model α), univ_close_core p k M
+  ∀ (k : nat) (M : model α), univ_close_core p k M 
 | 0 M     := by apply h1
-| (k+1) M :=
+| (k+1) M := 
   begin
     unfold univ_close_core,
     cases (symb_arity k p) with bm,
@@ -156,14 +167,6 @@ lemma univ_close_of_valid [h : inhabited α] (p : form) :
   p.valid α → univ_close α p :=
 λ h1, univ_close_core_of_valid _ h1 _ _
 
-def free_vars : nat → form → list nat
-| k ⊤*         := []
-| k ⊥*         := []
-| k ⟪⟨s,m,ts⟩⟫ := ⋃ (ts.map (term.free_vars k))
-| k (p ∧* q)   := list.union (free_vars k p) (free_vars k q)
-| k (p ∨* q)   := list.union (free_vars k p) (free_vars k q)
-| k (∀* p)     := free_vars (k+1) p
-| k (∃* p)     := free_vars (k+1) p
 
 def exist_open : form → form
 | (∃* p) := exist_open p
@@ -275,7 +278,6 @@ begin
   apply h2, refine ⟨M, _⟩, intro w,
   rw holds_iff_holds_of_closed _ _ w _ h1 at h3, assumption,
 end
-
 
 def fresh_func_idx : form → nat
 | ⊤*        := 0
