@@ -2,7 +2,66 @@ import .model .misc .nat .list
 
 variable {α : Type}
 
+#check classical.skolem
 open tactic
+
+@[derive has_reflect, derive decidable_eq]
+inductive atom : Type
+| v : nat → atom
+| s : nat → atom
+
+namespace atom
+
+
+end atom
+
+
+#exit
+
+
+@[derive has_reflect, derive decidable_eq]
+inductive mole : Type
+| TT : nat  → atom → mole
+| TB : nat  → mole → mole
+| BT : mole → atom → mole
+| BB : mole → mole → mole
+
+@[derive has_reflect, derive decidable_eq]
+inductive term : Type
+| a : atom → term
+| m : mole → term
+
+
+
+#exit
+/- variable index operations  -/
+
+def vdxs : term → list nat
+| (⅋ k)   := []
+| (t & s) := vdxs t ∪ vdxs s
+| (t # k) := (vdxs t).insert k
+
+def free_vdxs (k : nat) : term → list nat
+| (⅋ _)   := []
+| (t & s) := (free_vdxs t) ∪ (free_vdxs s)
+| (t # m) := if k ≤ m then t.free_vdxs.insert m else t.free_vdxs
+
+def incr_vdx (k : nat) : term → term
+| (⅋ m)   := ⅋ m
+| (t & s) := (incr_vdx t) & (incr_vdx s)
+| (t # m) := if k ≤ m then t.incr_vdx # (m + 1) else t # m
+
+def fresh_vdx : term → nat
+| (⅋ _)   := 0
+| (t & s) := max t.fresh_vdx s.fresh_vdx
+| (t # m) := max t.fresh_vdx (m + 1)
+
+def is_fresh_vdx (k : nat) (t : term) : Prop := t.fresh_vdx ≤ k
+#exit
+| s : nat → atom
+
+#exit
+
 
 @[derive has_reflect, derive decidable_eq]
 inductive term : Type
@@ -16,62 +75,30 @@ local notation t `#` k := term.vpp t k
 
 namespace term
 
--- def repr : term → string
--- | (# k) := "X" ++ k.to_subs
--- | (& k) := "C" ++ k.to_subs
--- | (t ^* s) := "(" ++ t.repr ++ " " ++ s.repr ++ ")"
--- 
--- instance has_repr : has_repr term := ⟨repr⟩
--- 
--- meta instance has_to_format : has_to_format term := ⟨λ x, repr x⟩
--- 
+def repr : term → string
+| (⅋ k) := "C" ++ k.to_subs
+| (t & s) := "(" ++ t.repr ++ " " ++ s.repr ++ ")"
+| (t # k) := "(" ++ t.repr ++ " " ++ "X" ++ k.to_subs ++ ")"
+
+instance has_repr : has_repr term := ⟨repr⟩
+
+meta instance has_to_format : has_to_format term := ⟨λ x, repr x⟩
+
 -- def mk_app (t : term) (ts : list term) : term :=
 -- list.foldl app t ts
--- 
--- def symb_arity_core (k : nat) : nat → term → option (bool × nat)
--- | m (# _)    := none
--- | m (& n)    := if k = n then some (ff,m) else none
--- | m (t ^* s) :=
---   symb_arity_core (m+1) t <|> symb_arity_core 0 s
-
--- def symb_arity (k : nat) (t : term) : option (bool × nat) :=
--- symb_arity_core k 0 t
 
 
 
 
 
-/- variable index operations  -/
 
-def vdxs : term → list nat
-| (⅋ k)   := []
-| (t & s) := vdxs t ∪ vdxs s
-| (t # k) := (vdxs t).insert k
--- 
--- def free_vdxs (k : nat) : term → list nat
--- | (# m)      := if k ≤ m then [m] else []
--- | (& _)      := []
--- | (t ^* s) := (free_vdxs t) ∪ (free_vdxs s)
--- 
--- def incr_vdx (k : nat) : term → term
--- | (#m)     := if k ≤ m then #(m + 1) else #m
--- | (&m)     := (& m)
--- | (t ^* s) := (incr_vdx t) ^* (incr_vdx s)
--- 
--- def fresh_vdx : term → nat
--- | (# m)      := m + 1
--- | (& _)      := 0
--- | (t1 ^* t2) := max t1.fresh_vdx t2.fresh_vdx
--- 
--- def is_fresh_vdx (k : nat) (t : term) : Prop := t.fresh_vdx ≤ k
--- 
--- 
+--
 /- symbol index operations  -/
 
--- def fresh_sdx : term → nat
--- | (# _)    := 0
--- | (& n)    := n + 1
--- | (t ^* s) := max (fresh_sdx t) (fresh_sdx s)
+def fresh_sdx : term → nat
+| (⅋ n)   := n + 1
+| (t & s) := max (fresh_sdx t) (fresh_sdx s)
+| (t # _) := fresh_sdx t
 
 end term
 
@@ -81,17 +108,17 @@ end term
 @[reducible] def sub : Type := list (nat × term)
 
 def sub.app (σ : sub) (k : nat) : option term :=
-prod.snd <$> (list.find (eq k ∘ prod.fst)) σ 
+prod.snd <$> (list.find (eq k ∘ prod.fst)) σ
 
 namespace term
 
 def subst (σ : sub) : term → term
 | (⅋ k)   := ⅋ k
 | (t & s) := subst t & subst s
-| (t # k) := 
-  match σ.app k with 
-  | none   := subst t # k 
-  | some s := subst t & s 
+| (t # k) :=
+  match σ.app k with
+  | none   := subst t # k
+  | some s := subst t & s
   end
 
 lemma subst_eq_of_eq_none {σ : sub} (t : term) {k : nat} :
@@ -114,47 +141,47 @@ def value (M v t) : α := value_core M v t []
 end term
 
 def val.subst (M : model α) (v : nat → α) (σ : sub) (k : nat) : α :=
-match σ.app k with 
+match σ.app k with
 | none   := v k
-| some t := t.value M v  
+| some t := t.value M v
 end
 
-lemma val.subst_eq_of_eq_none (M : model α) 
-  (v : nat → α) {σ : sub} {k : nat} : 
-σ.app k = none → val.subst M v σ k = v k := 
+lemma val.subst_eq_of_eq_none (M : model α)
+  (v : nat → α) {σ : sub} {k : nat} :
+σ.app k = none → val.subst M v σ k = v k :=
 by { intro h1, simp only [h1, val.subst] }
 
-lemma val.subst_eq_of_eq_some (M : model α) 
-  (v : nat → α) {σ : sub} {k : nat} {t : term} : 
-σ.app k = some t → val.subst M v σ k = t.value M v := 
+lemma val.subst_eq_of_eq_some (M : model α)
+  (v : nat → α) {σ : sub} {k : nat} {t : term} :
+σ.app k = some t → val.subst M v σ k = t.value M v :=
 by { intro h1, simp only [h1, val.subst] }
 
 namespace term
 
 lemma value_core_subst (M : model α) (v : nat → α) (σ : sub) :
-  ∀ t : term, ∀ as : list α, 
-  value_core M v (t.subst σ) as = 
-  value_core M (val.subst M v σ) t as  
+  ∀ t : term, ∀ as : list α,
+  value_core M v (t.subst σ) as =
+  value_core M (val.subst M v σ) t as
 | (⅋ k) as   := rfl
-| (t & s) as := 
+| (t & s) as :=
   begin
-    have h1 := value_core_subst t, 
-    have h2 := value_core_subst s [], 
+    have h1 := value_core_subst t,
+    have h2 := value_core_subst s [],
     simp only [value_core, subst, h1, h2]
   end
-| (t # k) as := 
+| (t # k) as :=
   begin
-    cases h1 : σ.app k with s, 
-    simp only [subst_eq_of_eq_none t h1, 
+    cases h1 : σ.app k with s,
+    simp only [subst_eq_of_eq_none t h1,
       val.subst_eq_of_eq_none M v h1,
       value_core_subst, value_core],
-    simp only [subst_eq_of_eq_some t s h1, 
+    simp only [subst_eq_of_eq_some t s h1,
       val.subst_eq_of_eq_some M v h1,
       value_core_subst, value_core, value]
   end
 
 lemma value_subst (M : model α) (v : nat → α) (σ : sub) (t : term) :
-  value M v (t.subst σ) = value M (val.subst M v σ) t :=  
+  value M v (t.subst σ) = value M (val.subst M v σ) t :=
 by apply value_core_subst
 
 lemma value_comp_subst (M : model α) (v : nat → α) (σ : sub) :
@@ -163,9 +190,9 @@ function.funext_iff.elim_right (by apply value_subst)
 
 #exit
 
-    simp only [value_core, subst, var.subst, val.subst], 
+    simp only [value_core, subst, var.subst, val.subst],
   end
-  
+
 
 #exit
 

@@ -1,5 +1,7 @@
 import data.list.basic
 
+universe u
+
 variables {α β : Type}
 
 namespace list
@@ -24,7 +26,7 @@ def max [has_zero α] [decidable_linear_order α] : list α → α
 | []      := 0
 | (a::as) := _root_.max a as.max
 
-def except : nat → list α → list α 
+def except : nat → list α → list α
 | 0     []      := []
 | (k+1) []      := []
 | 0     (a::as) := as
@@ -35,10 +37,24 @@ lemma except_subset_self :
 | 0     []      a h := by cases h
 | (k+1) []      a h := by cases h
 | 0     (b::as) a h := or.inr h
-| (k+1) (b::as) a h := 
+| (k+1) (b::as) a h :=
   by { cases h, left, exact h,
        right, apply except_subset_self h }
 
+lemma exists_mem_append_iff {α : Type u} (p : α → Prop) (l1 l2 : list α) :
+  (∃ x ∈ (l1 ++ l2), p x) ↔ (∃ x ∈ l1, p x) ∨ (∃ x ∈ l2, p x) :=
+begin
+  constructor; intro h1,
+  { rcases h1 with ⟨a, h2, h3⟩,
+    rw mem_append at h2, cases h2,
+    { left, refine ⟨a, h2, h3⟩ },
+    right, refine ⟨a, h2, h3⟩ },
+  cases h1;
+  rcases h1 with ⟨a, h2, h3⟩;
+  refine ⟨a, _, h3⟩,
+  apply mem_append_left _ h2,
+  apply mem_append_right _ h2
+end
 
 #exit
 def remove [decidable_eq α] (as : list α) (a : α) :=

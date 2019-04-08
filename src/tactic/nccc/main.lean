@@ -32,9 +32,9 @@ meta def get_domain : tactic expr :=
 target >>= get_domain_core
 
 
-local notation  `#` := term.var
-local notation  `&` := term.fnc
-local notation  t1 `^*` t2 := term.app t1 t2
+local notation  `⅋` := term.fnc
+local notation  t `&` s := term.tpp t s
+local notation  t `#` k := term.vpp t k
 
 local notation  `⊤*` := form.true
 local notation  `⊥*` := form.false
@@ -45,14 +45,19 @@ local notation  `∀*` := form.fa
 local notation  `∃*` := form.ex
 
 meta def to_term (k : nat) : expr → tactic term
-| (app x1 x2) :=
-  do t1 ← to_term x1,
-     t2 ← to_term x2,
-     return (t1 ^* t2)
+| (app x (var m)) :=
+  if m < k
+  then do t ← to_term x,
+          return (t # m)
+  else failed
+| (app x y) :=
+  do t ← to_term x,
+     s ← to_term y,
+     return (t & s)
 | (var m) :=
   if m < k
-  then return (term.var m)
-  else return (term.fnc (m - k))
+  then failed
+  else return (⅋ (m - k))
 | _ := failed
 
 meta def to_form : nat → expr → tactic form
@@ -83,7 +88,10 @@ meta def to_form : nat → expr → tactic form
 | k px :=
   match px.get_app_fn with
   | (var m) :=
-    do ts ← monad.mapm (to_term k) px.get_app_args,
+    do trace 0,
+       trace px.get_app_args,
+       ts ← monad.mapm (to_term k) px.get_app_args,
+       trace 0,
        return ⟪⟨tt, m-k, ts⟩⟫
   | _ := fail "Predicate expected"
   end
@@ -105,6 +113,7 @@ do desugar,
    ihx ← to_expr ``(inhabited),
    ix ← mk_instance (app ihx dx),
    x ← target >>= abst dx,
+   trace x,
    p ← to_form 0 x,
    y ← prove_univ_close dx ix p,
    apply y,

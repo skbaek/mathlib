@@ -16,6 +16,8 @@ inductive form : Type
 | fa  : form → form
 | ex  : form → form
 
+#exit
+
 local notation  `⊤*` := form.true
 local notation  `⊥*` := form.false
 local notation  `⟪` l `⟫` := form.lit l
@@ -131,9 +133,9 @@ def univ_close_core (p : form) :
   end
 
 lemma univ_close_core_of_valid (p : form) (h1 : p.valid α) :
-  ∀ (k : nat) (M : model α), univ_close_core p k M 
+  ∀ (k : nat) (M : model α), univ_close_core p k M
 | 0 M     := by apply h1
-| (k+1) M := 
+| (k+1) M :=
   begin
     unfold univ_close_core,
     cases (symb_arity k p) with bm,
