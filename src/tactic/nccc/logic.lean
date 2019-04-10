@@ -7,14 +7,26 @@ lemma imp_of_imp (p) {q} : (p → q) → (p → q) := id
 -- lemma exists_of_exists {p q : α → Prop} :
 --   (∀ x, p x → q x) → (∃ x, p x) → ∃ x, q x :=
 -- begin
---   intros h1 h2, 
+--   intros h1 h2,
 --   cases h2 with a h2,
---   refine ⟨a, h1 _ h2⟩, 
+--   refine ⟨a, h1 _ h2⟩,
 -- end
--- 
+--
 -- lemma forall_of_forall {p q : α → Prop} :
 --   (∀ x, p x → q x) → (∀ x, p x) → ∀ x, q x :=
 -- by { intros h1 h2 a, apply h1 _ (h2 a) }
+
+lemma forall_iff_forall {P Q : α → Prop} :
+  (∀ a, P a ↔ Q a) → ((∀ a, P a) ↔ (∀ a, Q a)) :=
+λ h, iff.intro
+  (λ hP a, (h a).elim_left (hP _))
+  (λ hQ a, (h a).elim_right (hQ _))
+
+lemma exists_iff_exists {P Q : α → Prop} :
+  (∀ a, P a ↔ Q a) → ((∃ a, P a) ↔ (∃ a, Q a)) :=
+λ h, iff.intro
+  (λ hP, begin cases hP with a ha, existsi a, apply (h a).elim_left ha end)
+  (λ hQ, begin cases hQ with a ha, existsi a, apply (h a).elim_right ha end)
 
 namespace classical
 
@@ -34,17 +46,7 @@ end classical
 
 #exit
 
-lemma forall_iff_forall {P Q : α → Prop} :
-  (∀ a, P a ↔ Q a) → ((∀ a, P a) ↔ (∀ a, Q a)) :=
-λ h, iff.intro
-  (λ hP a, (h a).elim_left (hP _))
-  (λ hQ a, (h a).elim_right (hQ _))
 
-lemma exists_iff_exists {P Q : α → Prop} :
-  (∀ a, P a ↔ Q a) → ((∃ a, P a) ↔ (∃ a, Q a)) :=
-λ h, iff.intro
-  (λ hP, begin cases hP with a ha, existsi a, apply (h a).elim_left ha end)
-  (λ hQ, begin cases hQ with a ha, existsi a, apply (h a).elim_right ha end)
 
 lemma or_iff_or {p p' q q' : Prop} :
   (p ↔ p') → (q ↔ q') → ((p ∨ q) ↔ (p' ∨ q')) :=

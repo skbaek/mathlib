@@ -4,6 +4,8 @@ universe u
 
 variables {α β : Type}
 
+variables {as as1 as2 : list α}
+
 namespace list
 
 lemma map_eq_map_of_forall_mem_eq {f g : α → β} :
@@ -55,6 +57,38 @@ begin
   apply mem_append_left _ h2,
   apply mem_append_right _ h2
 end
+
+lemma rotate_subset {k : nat} : as.rotate k ⊆ as :=
+λ x, mem_rotate.elim_left
+
+def seteq (l1 l2 : list α) : Prop := l1 ⊆ l2 ∧ l2 ⊆ l1
+
+local infix `⊆⊇` : 1000 := seteq
+
+lemma forall_mem_of_subset_of_forall_mem {l1 l2 : list α} {p : α → Prop} :
+  l1 ⊆ l2 → (∀ a ∈ l2, p a) → (∀ a ∈ l1, p a) :=
+λ h1 h2 a h3, h2 _ (h1 h3)
+
+lemma forall_mem_iff_forall_mem_of_seteq {l1 l2 : list α} {p : α → Prop} :
+  l1 ⊆⊇ l2 → ((∀ a ∈ l1, p a) ↔ (∀ a ∈ l2, p a)) :=
+begin
+  rintro ⟨hl, hr⟩, constructor;
+  apply forall_mem_of_subset_of_forall_mem;
+  assumption
+end
+
+lemma map_seteq_map_of_seteq {f : α → β} :
+  as1 ⊆⊇ as2 → map f as1 ⊆⊇ map f as2 :=
+by { rintro ⟨hl, hr⟩, constructor;
+     apply map_subset; assumption }
+
+lemma rotate_seteq_self (k : nat) (as : list α) : as.rotate k ⊆⊇ as :=
+by { constructor; intros x h0;
+     simpa only [mem_rotate] using h0 }
+
+
+#exit
+lemma subset_union_left [decidable_eq α] (l1 l2 : list α) : l1 ⊆ (l1 ∪ l2) := sorry
 
 #exit
 def remove [decidable_eq α] (as : list α) (a : α) :=

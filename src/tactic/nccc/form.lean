@@ -1,8 +1,6 @@
-import .lit .arity
+import .lit .arity .misc .logic tactic.monotonicity
 
 open tactic
-
-set_option pp.all true
 
 variables {α β : Type}
 
@@ -16,8 +14,6 @@ inductive form : Type
 | fa  : form → form
 | ex  : form → form
 
-#exit
-
 local notation  `⊤*` := form.true
 local notation  `⊥*` := form.false
 local notation  `⟪` l `⟫` := form.lit l
@@ -26,13 +22,8 @@ local notation  p `∧*` q := form.and p q
 local notation  `∀*` := form.fa
 local notation  `∃*` := form.ex
 
--- | ⊤*        := sorry
--- | ⊥*        := sorry
--- | ⟪⟨s, k, ts⟩⟫ := sorry
--- | (p ∧* q)  := sorry
--- | (p ∨* q)  := sorry
--- | (∀* p)  := sorry
--- | (∃* p)  := sorry
+meta def tactic.interactive.form.induce : tactic unit :=
+`[ intro p, induction p with l p q ihp ihq p q ihp ihq p ih p ih  ]
 
 namespace form
 
@@ -51,143 +42,67 @@ def holds (M : model α) : (nat → α) → form → Prop
 
 local notation M `;` v `⊨` p := holds M v p
 
-def valid (α : Type) (p : form) : Prop :=
+def fam_fav (α : Type) (p : form) : Prop :=
 ∀ M : model α, ∀ v : nat →  α, (M ; v ⊨ p)
 
-def valsat (α : Type) (p : form) : Prop :=
+def fam_exv (α : Type) (p : form) : Prop :=
 ∀ M : model α, ∃ v : nat →  α, (M ; v ⊨ p)
 
-def sat (α : Type) (p : form) : Prop :=
-∃ M : model α, ∃ v : nat →  α, (M ; v ⊨ p)
-
-/- Predicates on formulas -/
-
-def quant_free : form → Prop
-| ⊤*       := _root_.true
-| ⊥*       := _root_.true
-| ⟪l⟫      := _root_.true
-| (p ∧* q) := quant_free p ∧ quant_free q
-| (p ∨* q) := quant_free p ∧ quant_free q
-| (∀* p)   := _root_.false
-| (∃* p)   := _root_.false
-
 /- Increment all variable indices equal to or greater than k by 1. -/
-def incr_vdx : nat → form → form
-| k ⊤*           := ⊤*
-| k ⊥*           := ⊥*
-| k ⟪⟨b, m, ts⟩⟫ := ⟪⟨b, m, ts.map (term.incr_vdx k)⟩⟫
-| k (p ∨* q)     := (incr_vdx k p) ∨* (incr_vdx k q)
-| k (p ∧* q)     := (incr_vdx k p) ∧* (incr_vdx k q)
-| k (∀* p)       := ∀* (incr_vdx (k + 1) p)
-| k (∃* p)       := ∃* (incr_vdx (k + 1) p)
+def incr_vdxs : nat → form → form
+| k ⊤*       := ⊤*
+| k ⊥*       := ⊥*
+| k ⟪⟨b, a⟩⟫ := ⟪(b, a.incr_vdxs k)⟫
+| k (p ∨* q) := (incr_vdxs k p) ∨* (incr_vdxs k q)
+| k (p ∧* q) := (incr_vdxs k p) ∧* (incr_vdxs k q)
+| k (∀* p)   := ∀* (incr_vdxs (k + 1) p)
+| k (∃* p)   := ∃* (incr_vdxs (k + 1) p)
 
-def subst : nat → term → form → form
+def decr_vdxs : form → form
+| ⊤*       := ⊤*
+| ⊥*       := ⊥*
+| ⟪⟨b, a⟩⟫ := ⟪(b, a.decr_vdxs)⟫
+| (p ∨* q) := (decr_vdxs p) ∨* (decr_vdxs q)
+| (p ∧* q) := (decr_vdxs p) ∧* (decr_vdxs q)
+| (∀* p)   := ∀* (decr_vdxs p)
+| (∃* p)   := ∃* (decr_vdxs p)
+
+def subst : nat → atom → form → form
 | k s ⊤*         := ⊤*
 | k s ⊥*         := ⊥*
-| k s ⟪⟨b,m,ts⟩⟫ := ⟪⟨b,m,ts.map (term.subst [(k,s)])⟩⟫
+| k s ⟪⟨b,a⟩⟫ := ⟪⟨b, a.subst [(k,s)]⟩⟫
 | k s (p ∨* q)  := (subst k s p) ∨* (subst k s q)
 | k s (p ∧* q)  := (subst k s p) ∧* (subst k s q)
-| k s (∀* p)    := ∀* (subst (k+1) (s.incr_vdx 0) p)
-| k s (∃* p)    := ∃* (subst (k+1) (s.incr_vdx 0) p)
+| k s (∀* p)    := ∀* (subst (k+1) (s.incr_vdxs 0) p)
+| k s (∃* p)    := ∃* (subst (k+1) (s.incr_vdxs 0) p)
 
-def free_vdxs : nat → form → list nat
-| k ⊤*         := []
-| k ⊥*         := []
-| k ⟪⟨s,m,ts⟩⟫ := ⋃ (ts.map (term.free_vdxs k))
-| k (p ∧* q)   := list.union (free_vdxs k p) (free_vdxs k q)
-| k (p ∨* q)   := list.union (free_vdxs k p) (free_vdxs k q)
-| k (∀* p)     := free_vdxs (k+1) p
-| k (∃* p)     := free_vdxs (k+1) p
 
-end form
+def fresh_vdx : form → nat
+| ⊤*       := 0
+| ⊥*       := 0
+| ⟪⟨b, a⟩⟫ := a.fresh_vdx
+| (p ∨* q) := max (fresh_vdx p) (fresh_vdx q)
+| (p ∧* q) := max (fresh_vdx p) (fresh_vdx q)
+| (∀* p)   := fresh_vdx p - 1
+| (∃* p)   := fresh_vdx p - 1
 
-local notation m `↦` a := update m a
-
-def symb_arity_args (k : nat) : list term → option (bool × nat)
-| []      := none
-| (t::ts) := term.symb_arity k t <|> symb_arity_args ts
+def fresh_sdx : form → nat
+| ⊤*       := 0
+| ⊥*       := 0
+| ⟪(b, a)⟫ := a.fresh_sdx
+| (p ∨* q) := max (fresh_sdx p) (fresh_sdx q)
+| (p ∧* q) := max (fresh_sdx p) (fresh_sdx q)
+| (∀* p)   := fresh_sdx p
+| (∃* p)   := fresh_sdx p
 
 def symb_arity (k : nat) : form → option (bool × nat)
-| ⊤* := none
-| ⊥* := none
-| ⟪⟨s, m, ts⟩⟫ :=
-  if k = m then some (tt, ts.length)
-  else symb_arity_args k ts
+| ⊤*       := none
+| ⊥*       := none
+| ⟪⟨b, a⟩⟫ := a.symb_arity k
 | (p ∨* q) := (symb_arity p) <|> (symb_arity q)
 | (p ∧* q) := (symb_arity p) <|> (symb_arity q)
 | (∀* p)   := symb_arity p
 | (∃* p)   := symb_arity p
-
-def univ_close_core (p : form) :
-  nat → model α → Prop
-| 0     M :=  p.holds M (λ _, M.inhab)
-| (k+1) M :=
-  match symb_arity k p with
-  | none   := ∀ u : unit, univ_close_core k M
-  | some (tt,m) :=
-    ∀ r : arity  α Prop m, univ_close_core k
-    {M with rels  := (k ↦ r.app_list false) M.rels}
-  | some (ff,m) :=
-    ∀ f : arity  α  α m, univ_close_core k
-    {M with funcs := (k ↦ f.app_list M.inhab) M.funcs}
-  end
-
-lemma univ_close_core_of_valid (p : form) (h1 : p.valid α) :
-  ∀ (k : nat) (M : model α), univ_close_core p k M
-| 0 M     := by apply h1
-| (k+1) M :=
-  begin
-    unfold univ_close_core,
-    cases (symb_arity k p) with bm,
-    { intro _, apply univ_close_core_of_valid },
-    { cases bm with b m, cases b;
-      intro _; apply univ_close_core_of_valid }
-  end
-
-def fresh_vdx : form → nat
-| ⊤* := 0
-| ⊥* := 0
-| ⟪⟨s, m, ts⟩⟫ := list.max (ts.map term.fresh_vdx)
-| (p ∨* q)     := max (fresh_vdx p) (fresh_vdx q)
-| (p ∧* q)     := max (fresh_vdx p) (fresh_vdx q)
-| (∀* p)       := fresh_vdx p - 1
-| (∃* p)       := fresh_vdx p - 1
-
-def fresh_sdx : form → nat
-| ⊤* := 0
-| ⊥* := 0
-| ⟪⟨s, m, ts⟩⟫ := list.max ((m + 1) :: ts.map term.fresh_sdx)
-| (p ∨* q)     := max (fresh_sdx p) (fresh_sdx q)
-| (p ∧* q)     := max (fresh_sdx p) (fresh_sdx q)
-| (∀* p)       := fresh_sdx p
-| (∃* p)       := fresh_sdx p
-
-def univ_close (α : Type) [h : inhabited α] (p : form) : Prop :=
-univ_close_core p (fresh_sdx p) (model.default α)
-
-lemma univ_close_of_valid [h : inhabited α] (p : form) :
-  p.valid α → univ_close α p :=
-λ h1, univ_close_core_of_valid _ h1 _ _
-
-
-def exist_open : form → form
-| (∃* p) := exist_open p
-| p      := p
-
-def closed (p : form) : Prop := fresh_vdx p = 0
-
-def valsat_exist_open_imp (α : Type) (p : form) :
-closed p → (exist_open p).valsat α → p.valid α := sorry
-
-
-
-  #exit
-
-  #exit
-| k M p := M ; (λ _, @inhabited.default _ _) ⊨ p
-| k M p := ∀ r : arity α Prop k, univ_close (M.add_rel  r.app_list) ars p
-| k M p := ∀ f : arity α α k,    univ_close (M.add_func f.app_list) ars p
-
 
 def repr : form → string
 | ⊥* := "⊥"
@@ -202,94 +117,84 @@ instance has_repr : has_repr form := ⟨repr⟩
 
 meta instance has_to_format : has_to_format form := ⟨λ x, repr x⟩
 
-#exit
-meta def induce (t : tactic unit := skip) : tactic unit :=
-`[ intro p, induction p with k ts p ih p q ihp ihq p q ihp ihq p ih p ih; t ]
-
-meta def induce_iff (t : tactic unit := skip) : tactic unit :=
-induce t >>
-focus [ skip, skip, skip,
-  `[ apply not_iff_not_of_iff ],
-  `[ apply or_iff_or   ],
-  `[ apply and_iff_and ],
-  `[ apply forall_iff_forall, intro ],
-  `[ apply exists_iff_exists, intro ] ]
-
-
-
---instance dec_max_idx_lt : ∀ p : form, ∀ k, decidable (p.max_idx_lt k) :=
---begin
---  induce `[intro k, try {simp_fol}, try {apply_instance},
---    try {apply @and.decidable _ _ _ _}, try {apply ih},
---    try {apply ihp}, try {apply ihq}],
---end
---
---instance dec_closed (p : form) : decidable (closed p) := p.dec_max_idx_lt 0
-
-
---def equiv (α p q) : Prop :=
---∀ M : model α, ∀ v, ((M ; v ⊨ p) ↔ (M ; v ⊨ q))
-
-
-#exit
---| [] M := by apply h
---| ((b,k)::as) σ :=
---  begin
---    cases b; simp [rvalid];
---    intro r; apply rvalid_of_valid
---  end
-
-#exit
-def unsat (α p) : Prop := ¬ sat α p
-
-
-lemma holds_iff_holds_of_max_idx_lt :
-  ∀ (p : form) (M : model α) (v w : nat → α) k, p.max_idx_lt k →
-  (∀ m < k, v m = w m) → ((M ; v ⊨ p) ↔ (M ; w ⊨ p)) :=
-begin
-  induce_iff `[intros M v w m h1 h2, split_ands], trivial, trivial,
-  { simp_fol, apply iff_of_eq (congr_arg _ _),
-    apply list.map_eq_map_of_forall_mem_eq,
-    intros t h4, apply term.val_eq_val_of_max_idx_lt,
-    apply h1 _ h4, apply h2 },
-  { apply ih; assumption },
-  { apply ihp; assumption },
-  { apply ihq; assumption },
-  { apply ihp; assumption },
-  { apply ihq; assumption },
-  { apply ih, apply h1, intro n, cases n with n; intro h3,
-    refl, apply h2, rw ← nat.succ_lt_succ_iff, assumption },
-  { apply ih, apply h1, intro n, cases n with n; intro h3,
-    refl, apply h2, rw ← nat.succ_lt_succ_iff, assumption }
-end
-
-lemma holds_iff_holds_of_closed :
-  ∀ (M : model α) v w p, closed p →
-  ((M ; v ⊨ p) ↔ (M ; w ⊨ p)) :=
-begin
-  intros M v w p h1,
-  apply holds_iff_holds_of_max_idx_lt,
-  apply h1, intros m h2, cases h2
-end
-
-lemma valid_of_closed_of_unsat_neg [inhabited α] :
-  ∀ {p : form}, closed p → unsat α (¬* p) → valid α p :=
-begin
-  simp only [valid, unsat, sat], intros p h1 h2 M v,
-  apply classical.by_contradiction, intro h3,
-  apply h2, refine ⟨M, _⟩, intro w,
-  rw holds_iff_holds_of_closed _ _ w _ h1 at h3, assumption,
-end
-
-def fresh_func_idx : form → nat
-| ⊤*        := 0
-| ⊥*        := 0
-| (m ** ts) := list.max (ts.map (term.fresh_func_idx))
-| (¬* p)    := fresh_func_idx p
-| (p ∧* q)  := max (fresh_func_idx p) (fresh_func_idx q)
-| (p ∨* q)  := max (fresh_func_idx p) (fresh_func_idx q)
-| (∀* p)    := fresh_func_idx p
-| (∃* p)    := fresh_func_idx p
-
-
 end form
+
+def free_vdxs : form → list nat
+| ⊤*       := []
+| ⊥*       := []
+| ⟪l⟫      := l.vdxs
+| (p ∧* q) := free_vdxs p ∪ free_vdxs q
+| (p ∨* q) := free_vdxs p ∪ free_vdxs q
+| (∀* p)   := ((free_vdxs p).filter ((<) 0)).map nat.pred
+| (∃* p)   := ((free_vdxs p).filter ((<) 0)).map nat.pred
+
+open list
+
+def closed (p : form) : Prop := free_vdxs p = []
+
+lemma closed_or_iff {p q : form} :
+  closed (p ∨* q) ↔ (closed p ∧ closed q) :=
+begin
+  constructor; intro h0,
+  { constructor;
+    { apply eq_nil_iff_forall_not_mem.elim_right,
+      have h1 := eq_nil_iff_forall_not_mem.elim_left h0,
+      intros a h2,
+      apply h1 a (mem_union.elim_right _),
+      (`[apply (or.inl h2)] <|> `[apply (or.inr h2)]) } },
+  have hp : free_vdxs p = [] := h0.left,
+  have hq : free_vdxs q = [] := h0.right,
+  simp only [free_vdxs, closed, hp, hq, nil_union]
+end
+
+lemma closed_and_iff {p q : form} :
+  closed (p ∧* q) ↔ (closed p ∧ closed q) := closed_or_iff
+
+--lemma closed_of_closed_and_right {p q : form} :
+--  closed (p ∧* q) → closed q :=
+--begin
+--  intro h0,
+--  apply eq_nil_iff_forall_not_mem.elim_right,
+--  have h1 := eq_nil_iff_forall_not_mem.elim_left h0,
+--  intros a h2,
+--  apply h1 a (mem_union.elim_right (or.inr h2))
+--end
+
+def quant_free : form → Prop
+| ⊤*       := true
+| ⊥*       := true
+| ⟪l⟫      := true
+| (p ∧* q) := quant_free p ∧ quant_free q
+| (p ∨* q) := quant_free p ∧ quant_free q
+| (∀* p)   := false
+| (∃* p)   := false
+
+open list
+
+def holds_iff_holds_of_agree_on_fvs (M : model α)  :
+  ∀ p : form, ∀ v w : nat → α,
+  (∀ k ∈ free_vdxs p, v k = w k) →
+  (p.holds M v ↔ p.holds M w) :=
+begin
+  form.induce; intros v w h1; try {refl},
+  { apply lit.holds_iff_holds_of_agree_on_fvs M v w _ h1 },
+  repeat
+  { have hp := ihp v w (list.forall_mem_of_forall_mem_union_left h1),
+    have hq := ihq v w (list.forall_mem_of_forall_mem_union_right h1),
+    simp only [form.holds, hp, hq] },
+  tactic.focus [`[apply forall_iff_forall], `[apply exists_iff_exists]],
+  repeat
+  { intro a,
+    apply ih (update_zero a v) (update_zero a w),
+    intros k hk, cases k, refl,
+    apply h1 _ (mem_map.elim_right ⟨k.succ,
+      ⟨mem_filter_of_mem hk (nat.zero_lt_succ _), rfl⟩⟩) }
+end
+
+def holds_iff_holds_of_closed (M : model α) (v w : nat → α) {p : form} :
+  closed p → (p.holds M v ↔ p.holds M w) :=
+begin
+  unfold closed, intros h1,
+  apply holds_iff_holds_of_agree_on_fvs,
+  rw h1, apply forall_mem_nil
+end

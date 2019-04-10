@@ -1,4 +1,4 @@
-import .closure .logic .form .term
+import .closure .prove
 
 run_cmd mk_simp_attr `sugar
 attribute [sugar]
@@ -32,9 +32,9 @@ meta def get_domain : tactic expr :=
 target >>= get_domain_core
 
 
-local notation  `⅋` := term.fnc
-local notation  t `&` s := term.tpp t s
-local notation  t `#` k := term.vpp t k
+local notation  `⅋` := atom.sym
+local notation  t `&` s := atom.app t s
+local notation  t `#` k := atom.vpp t k
 
 local notation  `⊤*` := form.true
 local notation  `⊥*` := form.false
@@ -44,16 +44,16 @@ local notation  p `∨*` q := form.or p q
 local notation  `∀*` := form.fa
 local notation  `∃*` := form.ex
 
-meta def to_term (k : nat) : expr → tactic term
+meta def to_atom (k : nat) : expr → tactic atom
 | (app x (var m)) :=
   if m < k
-  then do t ← to_term x,
-          return (t # m)
+  then do a ← to_atom x,
+          return (a # m)
   else failed
 | (app x y) :=
-  do t ← to_term x,
-     s ← to_term y,
-     return (t & s)
+  do a ← to_atom x,
+     b ← to_atom y,
+     return (a & b)
 | (var m) :=
   if m < k
   then failed
@@ -79,33 +79,11 @@ meta def to_form : nat → expr → tactic form
   do φ ← to_form (k+1) (app (prx.lift_vars 0 1) (var 0)),
      return (∃* φ)
 | k `(¬ %%px) :=
-  match px.get_app_fn with
-  | (var m) :=
-    do ts ← monad.mapm (to_term k) px.get_app_args,
-       return ⟪⟨ff, m-k, ts⟩⟫
-  | _ := fail "Predicate expected"
-  end
+  do a ← to_atom k px,
+     return ⟪(ff, a)⟫
 | k px :=
-  match px.get_app_fn with
-  | (var m) :=
-    do trace 0,
-       trace px.get_app_args,
-       ts ← monad.mapm (to_term k) px.get_app_args,
-       trace 0,
-       return ⟪⟨tt, m-k, ts⟩⟫
-  | _ := fail "Predicate expected"
-  end
-
-axiom any (P : Prop) : P
-
-/- Return the expr of (π : form.valid ⟦dx⟧ p). -/
-meta def prove_valid (dx : expr) (p : form) : tactic expr :=
-return `(any (form.valid %%dx %%`(p)))
-
-/- Return the expr of (π : form.valid ⟦dx⟧ p). -/
-meta def prove_univ_close (dx ix : expr) (p : form) : tactic expr :=
-do x ← prove_valid dx p,
-   return `(@univ_close_of_valid %%dx %%ix %%`(p) %%x)
+  do a ← to_atom k px,
+     return ⟪(tt, a)⟫
 
 meta def main : tactic unit :=
 do desugar,
@@ -113,72 +91,27 @@ do desugar,
    ihx ← to_expr ``(inhabited),
    ix ← mk_instance (app ihx dx),
    x ← target >>= abst dx,
-   trace x,
    p ← to_form 0 x,
    y ← prove_univ_close dx ix p,
    apply y,
    skip
 
-example (P : nat → Prop) : ∀ x : nat, ∃ y : nat, P x ∧ ¬ P y :=
+example (P : nat → Prop) : ∀ x : nat, ∃ y : nat, P x ∨ ¬ P y :=
 begin
   main,
 end
 
 #exit
-@[reducible] def foo : form :=
-    (∀* (∃* (⟪⟨tt,0,[# 1]⟩⟫∧*⟪⟨tt,0,[# 0]⟩⟫)))
 
-example : false :=
-begin
-  have h : univ_close nat foo := sorry,
-  simp [univ_close, fresh_sdx] at h,
-end
-run_cmd infer_type `(foo) >>= trace
-#exit
-
-#exit
-
-#exit
 example (f g : nat → nat) : ¬ ∀ x : nat, ∃ y : nat, (g (x + 2) ≤ g (y + 2)) :=
 begin
   main,
 end
 
-
-   #exit
-   rev dx,
-   desugar,
-   abst dx,
-   --trace_goal,
-   reify dx ix,
-   to_expr ``(form.univ_close_of_valid _) >>= apply,
-   skip
-
-
-#exit
-meta def main : tactic unit :=
-do dx ← get_domain,
-   ihx ← to_expr ``(inhabited),
-   ix ← mk_instance (app ihx dx),
-   rev dx,
-   desugar,
-   abst dx,
-   --trace_goal,
-   reify dx ix,
-   to_expr ``(form.univ_close_of_valid _) >>= apply,
-   skip
-
-meta def trace_valid_goal :=
-do `(form.valid _ %%x) ← target,
-   eval_expr form x >>= trace
-
-
-
-#exit
 example (f g : nat → nat) : ∃ y : nat, (f y < y ∨ y ≤ g (y + 2)) :=
 by do
   main,
-  `(form.valid _ %%x) ← target,
+  `(form.fam_fav _ %%x) ← target,
   eval_expr form x >>= trace,
 
   skip

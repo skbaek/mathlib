@@ -2,7 +2,6 @@ import .model .misc .nat .list
 
 variable {α : Type}
 
-#check classical.skolem
 open tactic
 
 @[derive has_reflect, derive decidable_eq]
@@ -46,10 +45,6 @@ def free_vdxs (k : nat) : term → list nat
 | (t & s) := (free_vdxs t) ∪ (free_vdxs s)
 | (t # m) := if k ≤ m then t.free_vdxs.insert m else t.free_vdxs
 
-def incr_vdx (k : nat) : term → term
-| (⅋ m)   := ⅋ m
-| (t & s) := (incr_vdx t) & (incr_vdx s)
-| (t # m) := if k ≤ m then t.incr_vdx # (m + 1) else t # m
 
 def fresh_vdx : term → nat
 | (⅋ _)   := 0
