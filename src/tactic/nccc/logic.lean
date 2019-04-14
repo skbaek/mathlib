@@ -1,6 +1,7 @@
 import logic.basic
 
-variables {α : Type} {p q r : Prop}
+universe u
+variables {α : Type u} {p q r : Prop}
 
 lemma imp_of_imp (p) {q} : (p → q) → (p → q) := id
 

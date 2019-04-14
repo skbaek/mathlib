@@ -38,7 +38,6 @@ def skolemize_core : nat → form → (nat × form)
   let (m, p') := skolemize_core k p in
   (m, ∃* p')
 
-#exit
 def skolemize (p : form) : form :=
 let k := p.fresh_sdx in
 let (_,p') := skolemize_core k p in
