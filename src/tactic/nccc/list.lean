@@ -2,7 +2,7 @@ import data.list.basic
 
 universe u
 
-variables {α β : Type}
+variables {α β : Type u}
 
 variables {as as1 as2 : list α}
 
@@ -86,6 +86,9 @@ lemma rotate_seteq_self (k : nat) (as : list α) : as.rotate k ⊆⊇ as :=
 by { constructor; intros x h0;
      simpa only [mem_rotate] using h0 }
 
+
+lemma forall_mem_map (f : α → β) (p : β → Prop) (as : list α) : 
+  (∀ x : α, p (f x)) → (∀ x ∈ (as.map f), p x) := sorry
 
 #exit
 lemma subset_union_left [decidable_eq α] (l1 l2 : list α) : l1 ⊆ (l1 ∪ l2) := sorry

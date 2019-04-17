@@ -1,4 +1,14 @@
-variables {α β γ : Type}
+import tactic.ext
+
+variables {α β γ δ : Type}
+
+lemma prod.snd_map (f : α → β) (g : γ → δ) (x : α × γ) :
+  (x.map f g).snd = g x.snd := 
+by {cases x with a c, refl}
+
+lemma prod.snd_comp_map (f : α → β) (g : γ → δ) :
+  prod.snd ∘ (prod.map f g) = g ∘ prod.snd := 
+by {ext x, apply prod.snd_map}
 
 def update (m : nat) (a : α) (v : nat → α) : nat → α
 | n := if n = m then a else v n

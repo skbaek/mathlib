@@ -1,8 +1,8 @@
-import data.list.basic .logic .misc
+import .list .logic .misc
 
 universe u 
 
-variable {α : Type u}
+variables {α β : Type u}
 
 def assign (a : α) (f : nat → α) : nat → α
 | 0     := a
@@ -31,29 +31,56 @@ def atom.incr_idxs_ge (k : nat) : atom → atom
 
 def atom.incr_idxs : atom → atom := atom.incr_idxs_ge 0
 
+
+/- sub -/
+
 @[reducible] def sub : Type := list (nat × atom)
 
 namespace sub
+
+@[reducible] def domain : sub → list nat := list.map prod.fst
+
+@[reducible] def range : sub → list atom := list.map prod.snd
+
+open list
+
+@[reducible] def incr_idxs : sub → sub := 
+map (prod.map nat.succ (atom.incr_idxs))
 
 def get (k : nat) : sub → option atom 
 | []            := none 
 | ((m, a) :: σ) := if k = m then a else get σ 
 
-lemma get_eq_of_ne {k m : nat} {a : atom} {σ : sub} :
-  k ≠ m → sub.get k ((m, a) :: σ) = sub.get k σ :=
-by {intro h0, unfold get, rw if_neg h0}
+end sub
 
-def incr_idxs : sub → sub :=
-list.map (prod.map nat.succ (atom.incr_idxs))
+lemma in_domain_of_is_some_get (k : nat) :
+  ∀ σ : sub, (σ.get k).is_some → k ∈ σ.domain 
+| []            h0 := by cases h0
+| ((m, a) :: σ) h0 :=
+  begin
+    by_cases h1 : k = m,
+    { left, simp only [h1] },
+    right, apply in_domain_of_is_some_get,
+    simpa only [sub.get, h1, if_false] using h0,
+  end
 
-lemma get_zero_incr_idxs :
-  ∀ σ : sub, σ.incr_idxs.get 0 = none 
-| [] := rfl
-| ((k, a) :: σ) := 
-  have h1 : get 0 (incr_idxs ((k, a) :: σ)) = get 0 (sub.incr_idxs σ),
-  { simp only [get, incr_idxs, if_false, list.map,
-    ne.symm (nat.succ_ne_zero _), prod.map ] },
-  by simp only [h1, get_zero_incr_idxs σ]
+--lemma in_range_of_get_eq_some {k : nat } {a : atom} :
+--  ∀ {σ : sub}, (σ.get k) = some a → a ∈ σ.range := sorry 
+
+lemma get_zero_incr_idxs (σ : sub) :
+  σ.incr_idxs.get 0 = none :=
+begin
+  cases h0 : σ.incr_idxs.get 0 with a, 
+  { refl },
+  have h1 := in_domain_of_is_some_get 0 σ.incr_idxs _,
+  { have h2 : ∃ a : ℕ × atom, a ∈ σ ∧ 
+              (prod.map nat.succ atom.incr_idxs a).fst = 0,
+    { simpa only [sub.domain, sub.incr_idxs, 
+      list.map_map, list.mem_map] using h1 },
+    rcases h2 with ⟨⟨k, a⟩, _, h3⟩,
+    cases (nat.succ_ne_zero _ h3) },
+  rw h0, simp
+end
 
 lemma get_succ_incr_idxs (k : nat) : 
   ∀ σ : sub, σ.incr_idxs.get (k + 1) = atom.incr_idxs <$> (σ.get k)
@@ -61,55 +88,80 @@ lemma get_succ_incr_idxs (k : nat) :
 | ((m, a) :: σ) := 
   begin
     by_cases h0 : k = m,
-    { have h1 : get (k + 1) (incr_idxs ((m, a) :: σ)) = some a.incr_idxs,
-      { simp only [get, incr_idxs, if_true, prod.map, 
-        list.map, eq_self_iff_true, h0], refl },
-      have h2 : atom.incr_idxs <$> get k ((m, a) :: σ) = some a.incr_idxs, 
-      { simp only [get, incr_idxs, if_true, prod.map, 
-        list.map, eq_self_iff_true, h0], refl },
-      simp only [h1, h2] },
-    have h1 : get (k + 1) (incr_idxs ((m, a) :: σ)) = get (k + 1) (sub.incr_idxs σ), 
-    { simp only [get, incr_idxs, if_false, prod.map, 
-      list.map, eq_self_iff_true, not.imp h0 nat.succ_inj] },
-    have h2 : atom.incr_idxs <$> get k ((m, a) :: σ) = atom.incr_idxs <$> get k σ,
-    { simp only [get, incr_idxs, if_false, prod.map, 
-      list.map, eq_self_iff_true, h0] },
+    { have h1 : sub.get (k + 1) (sub.incr_idxs ((m, a) :: σ)) = 
+                some a.incr_idxs,
+      { simp only [sub.get, sub.incr_idxs, if_true,
+        prod.map, list.map, eq_self_iff_true, h0], refl },
+     have h2 : atom.incr_idxs <$> sub.get k ((m, a) :: σ) = 
+               some a.incr_idxs, 
+     { simp only [sub.get, sub.incr_idxs, if_true, 
+       prod.map, list.map, eq_self_iff_true, h0], refl },
+     simp only [h1, h2] },
+    have h1 : sub.get (k + 1) (sub.incr_idxs ((m, a) :: σ)) = 
+              sub.get (k + 1) (sub.incr_idxs σ), 
+    { simp only [sub.get, sub.incr_idxs, if_false, prod.map,
+     list.map, eq_self_iff_true, not.imp h0 nat.succ_inj] },
+    have h2 : atom.incr_idxs <$> sub.get k ((m, a) :: σ) = 
+              atom.incr_idxs <$> sub.get k σ,
+    { simp only [sub.get, sub.incr_idxs, if_false, 
+      prod.map,list.map, eq_self_iff_true, h0] },
     simp only [h1, h2, get_succ_incr_idxs σ]
   end
 
-end sub
+--lemma get_eq_of_ne {k m : nat} {a : atom} {σ : sub} 
+--  k ≠ m → sub.get k ((m, a) :: σ) = sub.get k σ :=
+--by {intro h0, unfold get, rw if_neg h0}
+
+
+
+  
+
 
 namespace atom
+
+lemma eq_of_var_eq_var {k m : nat} : (# k) = (# m) → k = m :=
+by {intro h0, cases h0, refl}
 
 def val (M : model α) : atom → value α
 | (# k)   := M k
 | (a & b) := a.val ∘ list.cons (b.val []).fst
 
 def subst (σ : sub) : atom → atom
-| (# k) :=
-  match σ.get k with
-  | none   := # k
-  | some s := s
-  end
+| (# k)   := (σ.get k).get_or_else (# k)
 | (a & b) := subst a & subst b
-
-lemma subst_var_cases (k m : nat) (a : atom) (σ : sub) :
-  subst ((m, a) :: σ) (# k) = a ∨ 
-  subst ((m, a) :: σ) (# k) = subst σ (# k) := 
-begin
-  by_cases h0 : k = m,
-  { left, subst h0, simp [subst, sub.get], refl },
-  right, simp [subst, sub.get_eq_of_ne h0]
-end
 
 lemma subst_eq_of_get_eq_none {σ : sub} {k : nat} :
   σ.get k = none → (# k).subst σ = # k :=
-by {intro h1, simp only [h1, atom.subst]}
+by {intro h1, simp only [h1, option.get_or_else, atom.subst]}
 
 lemma subst_eq_of_get_eq_some {σ : sub} {k : nat} {a : atom} :
   σ.get k = some a → (# k).subst σ = a :=
-by {intro h1, simp only [h1, atom.subst]}
+by {intro h1, simp only [h1, option.get_or_else, atom.subst]}
 
+--lemma subst_var_cases (k m : nat) (a : atom) (σ : sub) :
+--  subst ((k, a) :: σ) (# m) = a ∨ 
+--  subst ((k, a) :: σ) (# m) = subst σ (# m) := 
+--begin
+--  by_cases h0 : m = k,
+--  { left, subst h0, simp [subst, sub.get], refl },
+--  right, simp [subst, sub.get_eq_of_ne h0]
+--end
+
+-- lemma eq_or_in_range {k : nat} {a : atom} {σ : sub} :
+--   (# k).subst σ = a → (a = (# k) ∨ a ∈ σ.range) := sorry
+
+
+-- lemma of_subst_var_eq {k m : nat} {a b : atom} {σ : sub} :
+--   subst ((k, a) :: σ) (# m) = b →  
+--   ((k = m) ∧ a = b) ∨ (subst σ (# m) = b) :=
+-- begin
+--   intro h0, 
+--   by_cases h1 : m = k,
+--   { left, subst h1, refine ⟨rfl, _⟩, 
+--     simpa only [subst, sub.get, if_true, eq_self_iff_true] using h0 },
+--   right,
+--   simpa only [subst, sub.get_eq_of_ne h1] using h0 
+-- end
 
 lemma incr_idxs_app (a b : atom) : 
   incr_idxs (a & b) = (incr_idxs a & incr_idxs b) := 
@@ -187,10 +239,6 @@ lemma val_incr_idxs_ge {M N : model α} {k : nat}
 
 end atom
 
-def head_occ (k : nat) : atom → Prop
-| (# m)         := k = m 
-| (a & (# m))   := head_occ a
-| (a & (b & c)) := head_occ a ∨ head_occ (b & c)
 
 @[derive has_reflect]
 inductive form : Type
@@ -392,6 +440,313 @@ lemma holds_assign_incr_idxs {M : model α} {d : value α} :
   ∀ p : form, (M ₀↦ d) ⊨ p.incr_idxs ↔ M ⊨ p := 
 holds_incr_idxs_ge (M ₀↦ d) M 0 (λ _ h, by cases h) (λ _ _, rfl)
 
+def head_occ_on (k : nat) : bool → atom → Prop 
+| ff (# m)   := k = m
+| tt (# _)   := false
+| _  (a & b) := head_occ_on ff a ∨ head_occ_on tt b
+
+def head_occ (k : nat) : atom → Prop := head_occ_on k ff
+
+@[reducible] def swap (k : nat) : sub := 
+[(k, # (k + 1) & # k), (k + 1, # k)]
+
+lemma subst_swap_var (k m : nat) :
+(m = k ∧ (# m).subst (swap k) = (# (k + 1) & # k)) ∨ 
+(m = k + 1 ∧ (# m).subst (swap k) = # k) ∨
+(m ≠ k ∧ m ≠ k + 1 ∧ (# m).subst (swap k) = # m) := 
+begin
+  by_cases h0 : m = k,
+  { left, refine ⟨h0, _⟩, 
+    simp only [ swap, atom.subst, sub.get, 
+      if_true, h0, eq_self_iff_true ], refl },
+  by_cases h1 : m = k + 1,
+  { right, left,
+    refine ⟨h1, _⟩, 
+    simp only [ swap, atom.subst, sub.get, 
+      if_neg h0, if_pos h1 ], refl },
+  right, right,
+  refine ⟨h0, h1, _⟩, 
+  simp only [ swap, atom.subst, sub.get, 
+    if_neg h0, if_neg h1 ], refl
+end
+
+lemma head_occ_succ_succ (k : nat) :
+  ∀ a : atom,
+  head_occ (k + 2) (a.subst $ swap k) → 
+  head_occ (k + 2) a 
+| (# m)       := 
+  begin
+    intro h0, 
+    rcases subst_swap_var k m 
+      with ⟨_, h1⟩ | ⟨_, h1⟩ | ⟨_, _, h1⟩;
+    rw h1 at h0,
+    { cases h0,
+      { cases nat.succ_ne_self _ h0 },
+      cases h0 },
+    { have h2 : k + 2 ≠ k, 
+      { apply ne.symm, 
+        rw [nat.ne_add_iff_pos_right], 
+        exact dec_trivial },
+      cases h2 h0 },
+    exact h0
+  end
+| (a & (# m)) :=  
+  begin
+    rintro (h0 | h0), 
+    { left, exact head_occ_succ_succ a h0 },
+    rcases subst_swap_var k m 
+      with ⟨_, h1⟩ | ⟨_, h1⟩ | ⟨_, _, h1⟩;
+    rw h1 at h0; cases h0,
+    { cases nat.succ_ne_self _ h0 },
+    cases h0
+  end
+| (a & (b & c)) := 
+  begin
+    rintro (h0 | h0), 
+    { left, exact head_occ_succ_succ a h0 },
+    right, apply head_occ_succ_succ (b & c) h0
+  end
+  
+lemma head_occ_succ (k : nat) :
+  ∀ a : atom, head_occ k (a.subst $ swap k) → head_occ (k + 1) a  
+| (# m) h0 := 
+  begin
+    rcases subst_swap_var k m 
+      with ⟨_, h1⟩ | ⟨h2, h1⟩ | ⟨h2, _, h1⟩;
+    rw h1 at h0,
+    { cases h0,
+      { cases nat.succ_ne_self k h0.symm },
+      cases h0 },
+    { apply h2.symm },
+    cases h2 h0.symm
+  end
+| (a & (# m)) h0 := 
+  begin
+    cases h0,
+    { left, apply head_occ_succ _ h0 },
+    rcases subst_swap_var k m 
+      with ⟨_, h1⟩ | ⟨h2, h1⟩ | ⟨h2, _, h1⟩;
+    rw h1 at h0; cases h0, 
+    { cases nat.succ_ne_self k h0.symm },
+    cases h0,
+  end
+| (a & (b & c)) h0 := 
+  begin
+    cases h0,
+    { left, apply head_occ_succ a h0 },
+    right, apply head_occ_succ (b & c) h0
+  end
+
+#exit
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+instance list.decidable_eq_nil : ∀ as : list α, decidable (as = []) 
+| []       := is_true rfl
+| (_ :: _) := is_false (λ h, by cases h)
+
+def occ (k : nat) : atom → Prop
+| (# m)   := k = m 
+| (a & b) := occ a ∨ occ b
+
+def occ_at (k : nat) : list bool → atom → Prop
+| []        (# m)   := k = m 
+| []        (_ & _) := false
+| (_  :: _) (# _)   := false
+| (ff :: π) (a & b) := occ_at π a
+| (tt :: π) (a & b) := occ_at π b
+
+lemma occ_at_var (π : list bool) (k m : nat) :
+  occ_at k π (# m) ↔ (π = [] ∧ k = m) :=
+begin
+  constructor; intro h0,
+  { cases π with b, refine ⟨rfl, h0⟩, 
+    cases b; cases h0 },
+  rw [h0.left], exact h0.right
+end
+
+def fun_occ (k : nat) (a : atom) : Prop := 
+∃ bs : list bool, occ_at k (bs ++ [ff]) a 
+
+def head_occ (k : nat) (a : atom) : Prop := a = (# k) ∨ fun_occ k a
+
+@[reducible] def swap (k : nat) : sub := 
+[(k, # (k + 1) & # k), (k + 1, # k)]
+
+
+lemma head_occ_succ_succ (k : nat) (a : atom) :
+  head_occ (k + 2) (a.subst $ swap k) → 
+  head_occ (k + 2) a :=
+begin
+  rintro (h0 | h0),
+  { cases a with m a b, 
+    { cases atom.eq_or_in_range h0 with h1 h1, 
+      { left, exact h1.symm }, 
+      rcases h1 with ⟨_, _⟩ | ⟨h1 | ⟨_, _⟩⟩,
+      { cases (nat.ne_add_iff_pos_right k 2).elim_right 
+        (nat.zero_lt_succ _) (atom.eq_of_var_eq_var h1).symm } }, 
+    cases h0 },
+  cases h0 with π h0,
+
+  cases occ_at_subst h0 with h1 h1,
+  { right, refine ⟨_, h1.left⟩ },
+
+  rcases h1 with ⟨ρ, τ, m, b, h1, h2, h3, h4⟩, 
+
+  have h5 := in_range_of_get_eq_some h4,
+
+  --{ simp at h5, subst h5, 
+  --  cases h3, 
+  --  { rw occ_at_var at h3_a_1, }
+  --   
+  --  
+  --}
+
+
+  
+
+
+end
+
+
+#exit
+--#exit
+--inductive occ_at : list bool → nat → atom → Prop
+--| var (k : nat)  : occ_at [] k (# k)
+--| app_left       : 
+--  ∀ {k : nat} {a : atom}, ∀ b : atom, ∀ bs : list bool,
+--  occ_at bs k a → occ_at (ff :: bs) k (a & b)
+--| app_right       : 
+--  ∀ {k : nat} {a : atom}, ∀ b : atom, ∀ bs : list bool,
+--  occ_at bs k b → occ_at (tt :: bs) k (a & b)
+--
+--lemma occ_at_var (π : list bool) (k m : nat) :
+--  occ_at π k (# m) ↔ (π = [] ∧ k = m) :=
+--begin
+--  constructor; intro h0,
+--  { cases h0, constructor; refl },
+--  rw [h0.left, h0.right],
+--  constructor
+--end
+
+
+open list
+
+lemma head_occ_var (k m : nat) :
+  head_occ k (# m) ↔ k = m :=
+begin
+  constructor; intro h0, 
+  { cases h0, 
+    { cases h0, refl },
+    rcases h0 with ⟨π, h1⟩, 
+    rw [occ_at_var, append_eq_nil] at h1,
+    cases h1.left.right },
+  rw h0, constructor, refl
+end
+
+lemma head_occ_app_var (k m : nat) (a : atom) :
+  head_occ k (a & (# m)) ↔ head_occ k a := sorry
+
+lemma head_occ_app_of_head_occ_left (k : nat) (a b : atom) :
+  head_occ k a → head_occ k (a & b) := sorry
+
+lemma head_occ_app_of_head_occ_right (k : nat) (a b c : atom) :
+  head_occ k (b & c) → head_occ k (a & (b & c)) := sorry
+
+lemma occ_at_subst {k : nat} {σ : sub} :
+  ∀ {a : atom} {π : list bool},
+  occ_at k π (a.subst σ) →  
+  ((occ_at k π a ∧ σ.get k = none) ∨ 
+   (∃ (ρ τ : list bool) (m : nat) (b : atom), 
+      ρ ++ τ = π ∧ occ_at m ρ a ∧ occ_at k τ b ∧ σ.get m = some b)) 
+| (# n) π h0 := 
+  begin
+    cases h1 : σ.get n with b,
+    { rw atom.subst_eq_of_get_eq_none h1 at h0, 
+      rw occ_at_var at h0,
+      left, rw [h0.left, h0.right],
+      refine ⟨rfl, h1⟩ },
+    rw atom.subst_eq_of_get_eq_some h1 at h0, 
+    right, 
+    refine ⟨[], π, n, b, nil_append _, rfl, h0, h1⟩
+  end
+| (b & c) π h0 := 
+  begin
+    cases π with b π, 
+    { cases h0 },
+
+
+    --cases h0 with _ _ _ _ υ h1 _ _ _ υ h1;
+    --{ rcases occ_at_subst h1 with ⟨h2, h3⟩ | 
+    --    ⟨ρ, τ, m, d, ⟨h2, h3, h4, h5⟩⟩,
+    --  { left, refine ⟨by {constructor, assumption}, h3⟩ },
+    --  right, 
+    --  refine ⟨_ :: ρ, τ, m, d, 
+    --    ⟨by {rw cons_append, congr'}, _ , h4, h5⟩⟩, 
+    --  constructor, exact h3 }
+  end
+
+
+#exit
+--#exit
+--def head_occ (k : nat) : atom → Prop
+--| (# m)         := k = m 
+--| (a & (# m))   := head_occ a
+--| (a & (b & c)) := head_occ a ∨ head_occ (b & c)
+
 def idx_is_fo : nat → form → Prop
 | k ⟪b, a⟫           := ¬ head_occ k a 
 | k (form.con _)     := true
@@ -404,10 +759,9 @@ def qua_are_fo (ae : bool) : form → Prop
 | (form.bin _ p q) := qua_are_fo p ∧ qua_are_fo q
 | (form.qua b p)   := (ae = b → idx_is_fo 0 p) ∧ qua_are_fo p 
 
-@[reducible] def skolem_sub : sub := [(0, (# 1) & (# 0)), (1, # 0)]
 
-def skolemize (p : form) : form :=
-  p.subst [(0, (# 1) & (# 0)), (1, # 0)]
+def form.swap (p : form) : form :=
+  p.subst (swap 0) --[(0, (# 1) & (# 0)), (1, # 0)]
 
 def evaluate (a : α) : value α :=
 λ _, (a, false)
@@ -434,9 +788,9 @@ lemma model.assign_subst (M : model α) (v : value α) (σ : sub) :
 begin
   rw function.funext_iff, 
   intro k, cases k, 
-  { have h0 := sub.get_zero_incr_idxs σ,
+  { have h0 := get_zero_incr_idxs σ,
     simp only [model.subst, h0], refl }, 
-  have h0 := sub.get_succ_incr_idxs k σ,
+  have h0 := get_succ_incr_idxs k σ,
   cases h1 : sub.get k σ with a,
   { rw h1 at h0, 
     have h2 : (model.subst M σ ₀↦v) (succ k) = M k,
@@ -465,10 +819,11 @@ lemma holds_subst :
   by { apply holds_qua_iff_holds_qua, intro v,
        simp only [model.assign_subst, holds_subst] }
 
-lemma holds_skolemize {M : model α} {v w : value α} {p} :
-  ((M ₀↦ v ₀↦ w) ⊨ skolemize p) ↔ ((M ₀↦ w ₀↦ v ⬝ w) ⊨ p) := 
+#check form.swap
+lemma holds_swap {M : model α} {v w : value α} {p : form} :
+  ((M ₀↦ v ₀↦ w) ⊨ p.swap) ↔ ((M ₀↦ w ₀↦ v ⬝ w) ⊨ p) := 
 begin
-  unfold skolemize, 
+  unfold form.swap, 
   rw holds_subst,
   have h0 : model.subst (M ₀↦ v ₀↦ w) [(0, (# 1) & (# 0)), (1, # 0)] = 
             (M ₀↦ w ₀↦ v ⬝ w),
@@ -506,10 +861,14 @@ end
 
 lemma val_eq_val_of_eq_except {M N : model α} {k : nat} (h0 : eq_except M N k) : 
   ∀ a : atom, ¬ head_occ k a → (a.val M = a.val N) 
-| (# m)   h1 := by {apply h0.left, apply (ne.symm h1)}
+| (# m)   h1 := 
+  by { rw [head_occ_var ] at h1, 
+       apply h0.left _ (ne.symm h1) }
 | (a & (# m)) h1 := 
   begin
-    have h2 : a.val M = a.val N := val_eq_val_of_eq_except a h1,
+    have h2 : a.val M = a.val N,
+    { rw head_occ_app_var at h1,
+      apply val_eq_val_of_eq_except a h1 },
     have h3 : (M m []).fst  = (N m []).fst, 
     { by_cases h4 : k = m,
       { subst h4, apply h0.right },
@@ -519,8 +878,13 @@ lemma val_eq_val_of_eq_except {M N : model α} {k : nat} (h0 : eq_except M N k) 
 | (a & (b & c)) h1 := 
   begin
     cases not_or_distrib.elim_left h1 with ha hbc,
-    have h2 : a.val M = a.val N := val_eq_val_of_eq_except a ha,
-    have h3 : (b & c).val M = (b & c).val N := val_eq_val_of_eq_except _ hbc,
+    have h2 : a.val M = a.val N,
+    { apply val_eq_val_of_eq_except a _,
+      intro h2, apply h1 (head_occ_app_of_head_occ_left _ _ _ h2) },
+    have h3 : (b & c).val M = (b & c).val N,
+    { apply val_eq_val_of_eq_except _ _, 
+      intro h3, apply h1 (head_occ_app_of_head_occ_right _ _ _ _ h3) },
+
     simp only [atom.val, h2, h3]
   end
 
@@ -544,18 +908,18 @@ lemma holds_iff_holds_of_eq_except :
       (assign_eq_except_assign _ h0) h1
   end
 
-def ex_fa_skolemize_eqv [inhabited α] (p : form) : 
-  idx_is_fo 1 p → (∃* (∀* $ skolemize p) <==α==> ∀* (∃* p)) := 
+def ex_fa_swap_eqv [inhabited α] (p : form) : 
+  idx_is_fo 1 p → (∃* (∀* $ form.swap p) <==α==> ∀* (∃* p)) := 
 begin
   intros h0 M,
   constructor; intro h1,
   { cases h1 with v h1,
     intro w, 
     refine ⟨v ⬝ w, _⟩, 
-    rw ← holds_skolemize, apply h1 },
+    rw ← holds_swap, apply h1 },
   cases exists_skolem_val h1 with f h2,
   refine ⟨f, λ v, _⟩, 
-  rw holds_skolemize,
+  rw holds_swap,
   rw [ @holds_iff_holds_of_eq_except _
          (M ₀↦ v ₀↦ f⬝v) (M ₀↦ vᵈₑ ₀↦ f ⬝ v) 1 p _ h0,
        ← assign_app_evaluate_denote (M ₀↦vᵈₑ) f v ],
@@ -577,8 +941,8 @@ lemma neg_subst :
   by { intro M, apply holds_qua_iff_holds_qua,
        intro v, apply neg_subst }
 
-lemma neg_skolemize {p : form} : 
-  (skolemize p).neg <==α==> (skolemize p.neg) := neg_subst _ _
+lemma neg_swap {p : form} : p.swap.neg <==α==> p.neg.swap := 
+neg_subst _ _
 
 lemma idx_is_fo_neg : ∀ k : nat, ∀ p : form, idx_is_fo k p.neg ↔ idx_is_fo k p 
 | k ⟪b, a⟫           := by refl
@@ -596,94 +960,80 @@ begin
   repeat {apply classical.dec _}
 end
 
-def fa_ex_skolemize_eqv [inhabited α] (p : form) : 
-  idx_is_fo 1 p → (∀* (∃* $ skolemize p) <==α==> ∃* (∀* p)) := 
+def fa_ex_swap_eqv [inhabited α] (p : form) : 
+  idx_is_fo 1 p → (∀* (∃* p.swap) <==α==> ∃* (∀* p)) := 
 begin
   intro h0, 
   replace h0 := (idx_is_fo_neg _ _).elim_right h0,
-  have h1 : (∃* (∀* ((skolemize p).neg)) <==α==> ∀* (∃* (form.neg p))) := 
+  have h1 : (∃* (∀* p.swap.neg) <==α==> ∀* (∃* (form.neg p))) := 
   eqv_trans 
-    (qua_eqv_qua (qua_eqv_qua neg_skolemize))
-    (@ex_fa_skolemize_eqv α _ _ h0),
+    (qua_eqv_qua (qua_eqv_qua neg_swap))
+    (@ex_fa_swap_eqv α _ _ h0),
   rw ← neg_eqv_neg,
   simp only [holds_neg.symm, form.neg, bnot, h1]
 end
 
-def skolemize_eqv [inhabited α] (ae : bool) {p : form} : 
+def swap_eqv [inhabited α] (ae : bool) {p : form} : 
   idx_is_fo 1 p → 
-  (form.qua ae (form.qua (bnot ae) $ skolemize p) 
+  (form.qua ae (form.qua (bnot ae) p.swap) 
     <==α==> form.qua (bnot ae) (form.qua ae p)) := 
 by { intro h0, cases ae,
-     exact fa_ex_skolemize_eqv _ h0,
-     exact ex_fa_skolemize_eqv _ h0 }
+     exact fa_ex_swap_eqv _ h0,
+     exact ex_fa_swap_eqv _ h0 }
 
-open list
 
-lemma head_occ_succ_var {k m : nat} :
-  head_occ k (atom.subst [(k, (# (k + 1) & (# k))), (k + 1, # k)] (# m))
-  → k + 1 = m :=
-begin
-  intro h0, 
-  by_cases h1 : k + 1 = m,
-  { exact h1 },
-  by_cases h2 : k = m, 
-  { subst h2,
-    have h3 : k = k + 1, 
-    { simpa [atom.subst, sub.get] using h0 },
-    cases (nat.succ_ne_self _ h3.symm : false) },
-  cases (h2 _ : false),
-  simpa [atom.subst, sub.get, 
-    sub.get_eq_of_ne (ne.symm h1), 
-    sub.get_eq_of_ne (ne.symm h2)] using h0
-end
+lemma not_succ_succ_in_domain_swap (k : nat) :
+  ¬ (k + 2 ∈ (swap k).domain) := sorry
 
-lemma head_occ_succ (k : nat) :
-  ∀ a : atom, head_occ k 
-    (atom.subst [(k, (# (k + 1) & (# k))), (k + 1, # k)] a) → 
-  head_occ (k + 1) a  
-| (# m) h0 := head_occ_succ_var h0
-| (a & (# m)) h0 := 
-  begin
-    replace h0 : head_occ k ((a.subst [(k, # (k + 1)&# k), (k + 1, # k)]) & 
-                 (# m).subst [(k, # (k + 1)&# k), (k + 1, # k)]) := h0,
-    have h1 : head_occ k (a.subst [(k, # (k + 1)&# k), (k + 1, # k)]), 
-    { cases atom.subst_var_cases m k (#(k + 1) & # k) [(k + 1, # k)] with h2 h2;
-      rw h2 at h0,
-      { cases h0, { exact h0 },
-        cases nat.succ_ne_self k h0.symm, }, 
-      cases atom.subst_var_cases m (k + 1) (# k) [] with h3 h3;
-      rw h3 at h0; exact h0 },
-    apply head_occ_succ a h1,
-  end
+
+#check in_domain_of_is_some_get
+.
+#exit
+
 | (a & (b & c)) h0 := 
   begin
     cases h0,
-    { left, apply head_occ_succ a h0 },
-    right, apply head_occ_succ (b & c) h0
+    { left, apply head_occ_succ_succ a h0 },
+    right, apply head_occ_succ_succ (b & c) h0
   end
 
-lemma idx_is_fo_subst : 
+
+lemma zero_idx_is_fo_swap_aux : 
   ∀ k : nat, ∀ p : form, idx_is_fo (k + 1) p → 
     idx_is_fo k (form.subst [(k, (# (k + 1)) & (# k)), (k + 1, # k)] p) 
 | k ⟪b, a⟫           h0 := h0 ∘ (head_occ_succ k _)
 | k (form.con b)     h0 := trivial
 | k (form.bin b p q) h0 := 
   by { cases h0, constructor; 
-       apply idx_is_fo_subst; assumption }
-| k (form.qua b p)   h0 := idx_is_fo_subst (k + 1) p h0
+       apply zero_idx_is_fo_swap_aux; assumption }
+| k (form.qua b p)   h0 := zero_idx_is_fo_swap_aux (k + 1) p h0
 
-lemma idx_is_fo_skolemize {p : form} :
-  idx_is_fo 1 p → idx_is_fo 0 (skolemize p) := 
-idx_is_fo_subst 0 _
+lemma zero_idx_is_fo_swap {p : form} :
+  idx_is_fo 1 p → idx_is_fo 0 (swap p) := 
+zero_idx_is_fo_swap_aux 0 _
 
-@[reducible] def form.size_of_two : (Σ' (a : form), form) → nat 
-| ⟨p, q⟩ := p.size_of + q.size_of 
+lemma idx_is_fo_swap : 
+  ∀ k : nat, ∀ p : form, idx_is_fo (k + 2) p → 
+    idx_is_fo (k + 2) (form.subst [(k, (# (k + 1)) & (# k)), (k + 1, # k)] p) 
+| k ⟪b, a⟫           h0 := h0 ∘ (head_occ_succ_succ k _)
+| k (form.con b)     h0 := trivial
+| k (form.bin b p q) h0 := 
+  by { cases h0, constructor; 
+       apply idx_is_fo_swap; assumption }
+| k (form.qua b p)   h0 := idx_is_fo_swap (k + 1) p h0
 
-meta def form.show_size_lt : tactic unit := 
-`[ simp only [form.size_of_two, form.size_of, nat.lt_succ_self,
-   lt_succ_self, add_comm, add_lt_add_iff_left, add_left_comm,
-   form.size_of_incr_idxs, form.size_of_incr_idxs_ge,
-   nat.zero_lt_succ, add_zero, lt_add_iff_pos_right ] ]
+  #exit
+lemma idx_is_fo_swap {k : nat} {p : form} :
+  idx_is_fo (k + 2) p → idx_is_fo (k + 2) (swap p) := sorry
+
+--@[reducible] def form.size_of_two : (Σ' (a : form), form) → nat 
+--| ⟨p, q⟩ := p.size_of + q.size_of 
+--
+--meta def form.show_size_lt : tactic unit := 
+--`[ simp only [form.size_of_two, form.size_of, nat.lt_succ_self,
+--   lt_succ_self, add_comm, add_lt_add_iff_left, add_left_comm,
+--   form.size_of_incr_idxs, form.size_of_incr_idxs_ge,
+--   nat.zero_lt_succ, add_zero, lt_add_iff_pos_right ] ]
 
 lemma neg_incr_idxs_ge : 
   ∀ k : nat, ∀ p : form, (p.incr_idxs_ge k).neg = p.neg.incr_idxs_ge k 
@@ -758,35 +1108,170 @@ begin
     bin_comm ao p (form.qua ae q) M ] 
 end
 
-/- Pull quantifiers over a binary connective. `ae` specifies
-   the type of quantifier being pulled, and `ao` specifies 
-   the binary connective. -/
-def pull_over_bin (ae ao : bool) : form → form → form
-| (form.qua ae p) q := 
-  have form.size_of_two ⟨p, form.incr_idxs q⟩ < 
-       form.size_of_two ⟨form.qua ae p, q⟩,
-  by form.show_size_lt,
-  form.qua ae (pull_over_bin p q.incr_idxs)
-| p (form.qua ae q) :=
-  have form.size_of_two ⟨form.incr_idxs p, q⟩ <
-       form.size_of_two ⟨p, form.qua ae q⟩,
-  by form.show_size_lt,
-  form.qua ae (pull_over_bin p.incr_idxs q)
-| p q := form.bin ao p q
-using_well_founded 
-  {rel_tac := λ _ _, `[exact ⟨_, measure_wf form.size_of_two⟩]}
+@[reducible] def form.size_of_ordered : 
+  (Σ' (b : bool), (Σ' (a : form), form)) → nat 
+| ⟨tt, p, q⟩ := p.size_of + q.size_of + 1
+| ⟨ff, p, q⟩ := p.size_of + q.size_of 
 
-def skolemize_all (ae : bool) : form → form
+meta def form.show_size_lt : tactic unit :=
+`[ simp only [form.size_of_ordered, nat.lt_succ_self,
+   add_comm, add_lt_add_iff_left, add_left_comm,
+   form.size_of_incr_idxs ] ]
+
+/- Pull quantifiers over a binary connective. `ae` specifies
+   the type of quantifier to be pulled, and `ao` specifies 
+   the binary connective. -/
+def pull_over_bin (ae : option bool) (ao : bool) : bool → form → form → form
+| tt (form.qua b p) q := 
+  have form.size_of_ordered ⟨ff, ⟨q, form.qua b p⟩⟩ <
+       form.size_of_ordered ⟨tt, ⟨form.qua b p, q⟩⟩,
+  by form.show_size_lt,
+  if ae = some (bnot b) 
+  then pull_over_bin ff q (form.qua b p)
+  else form.qua b (pull_over_bin tt p q.incr_idxs)
+| ff (form.qua b p) q := 
+  have form.size_of_ordered ⟨ff, ⟨p, form.incr_idxs q⟩⟩ <
+       form.size_of_ordered ⟨ff, ⟨form.qua b p, q⟩⟩,
+  by form.show_size_lt,
+  if ae = some (bnot b) 
+  then form.bin ao (form.qua b p) q
+  else form.qua b (pull_over_bin ff p q.incr_idxs)
+| tt p q := 
+  have form.size_of_ordered ⟨ff, ⟨q, p⟩⟩ <
+       form.size_of_ordered ⟨tt, ⟨p, q⟩⟩,
+  by form.show_size_lt,
+  pull_over_bin ff q p
+| ff p q := form.bin ao p q
+using_well_founded 
+  {rel_tac := λ _ _, `[exact ⟨_, measure_wf form.size_of_ordered⟩]}
+
+/- Pull quantifiers over a quantifier via skolemization. 
+   `ae` indicates the type of quantifier being pulled. -/
+def swap_many (ae : bool) : form → form
+| (form.qua b p) := 
+  have form.size_of (swap p) < form.size_of (form.qua b p),
+  { unfold swap, rw form.size_of_subst, 
+    simp only [form.size_of, nat.lt_succ_self, add_comm] }, 
+  if ae = b 
+  then form.qua ae (swap_many $ swap p)
+  else form.qua (bnot ae) (form.qua b p)
+| p := form.qua (bnot ae) p
+
+lemma idx_is_fo_swap_many (ae : bool) :
+  ∀ {p : form} {k : nat}, idx_is_fo (k + 1) p → idx_is_fo k (swap_many ae p) 
+| ⟪b, a⟫           := λ _, id
+| (form.con b)     := λ _, id
+| (form.bin b p q) := λ _, id
+| (form.qua b p)   := 
+  have form.size_of (swap p) < form.size_of (form.qua b p),
+  by {unfold swap, rw form.size_of_subst, form.show_size_lt},
+  begin
+    intros k h0,
+    unfold swap_many,
+    by_cases h1 : ae = b,
+    { subst h1, rw if_pos rfl,
+      have h2 := @idx_is_fo_swap k _ h0,
+      apply @idx_is_fo_swap_many _ (k + 1) h2 }, 
+    rw if_neg h1, exact h0
+  end
+
+#exit
+lemma swap_many_eqv (α : Type u) [inhabited α] (ae : bool) :
+  ∀ {p : form}, idx_is_fo 0 p → 
+  (swap_many ae p <==α==> form.qua (bnot ae) p) 
+| ⟪b, a⟫           := λ _, eqv_refl _ _
+| (form.con b)     := λ _, eqv_refl _ _
+| (form.bin b p q) := λ _, eqv_refl _ _ 
+| (form.qua b p)   := 
+  have form.size_of (swap p) < form.size_of (form.qua b p) :=
+  by { unfold swap, rw form.size_of_subst,
+       form.show_size_lt },
+  begin
+    intro h0,
+    unfold swap_many,
+    by_cases h1 : ae = b, 
+    { subst h1, rw if_pos rfl,
+      apply eqv_trans _ (@swap_eqv α _ ae _ h0),
+      apply qua_eqv_qua,
+      apply swap_many_eqv (zero_idx_is_fo_swap h0) },
+    rw if_neg h1, apply eqv_refl _
+  end
+
+def swap_all (ae : bool) : form → form
 | ⟪b, a⟫           := ⟪b, a⟫ 
 | (form.con b)     := form.con b
 | (form.bin b p q) := 
-  pull_over_bin ae b (skolemize_all p) (skolemize_all q) 
+  pull_over_bin (some ae) b tt (swap_all p) (swap_all q) 
 | (form.qua b p)   := 
   if ae = b
-  then form.qua ae (skolemize_all p)
-  else skolemize_many ae (skolemize_all p)
+  then form.qua ae (swap_all p)
+  else swap_many ae (swap_all p)
+
+lemma bnot_eq_iff_ne {a b : bool} : 
+  bnot a = b ↔ a ≠ b := 
+by cases a; cases b; simp only 
+   [bnot, ne, not_false_iff, eq_self_iff_true, not_true]
 
 
+lemma idx_is_fo_pull_over_bin {k : nat} 
+  (ae : option bool) (ao ls : bool) {p q : form} :
+idx_is_fo k p → idx_is_fo k q → 
+idx_is_fo k (pull_over_bin ae ao ls p q) := sorry
+
+lemma idx_is_fo_swap_all (ae : bool) :
+  ∀ {k : nat} {p : form}, idx_is_fo k p → idx_is_fo k (swap_all ae p)  
+| k ⟪b, a⟫           h0 := h0
+| k (form.con b)     h0 := h0
+| k (form.bin b p q) h0 := 
+  by { cases h0, apply idx_is_fo_pull_over_bin; 
+       apply idx_is_fo_swap_all; assumption }
+| k (form.qua b p)   h0 := 
+  begin
+    unfold swap_all,
+    by_cases h1 : ae = b,
+    { subst h1, rw if_pos rfl,
+      apply @idx_is_fo_swap_all _ p h0 },
+    rw if_neg h1, 
+    apply idx_is_fo_swap_many,
+    apply idx_is_fo_swap_all,
+    apply h0,
+  end
+
+def pull_over_bin_eqv [inhabited α] 
+  (ae : option bool) (ao ls : bool) :
+  ∀ p q : form, pull_over_bin ae ao ls p q <==α==> form.bin ao p q := sorry
+
+lemma swap_all_eqv [inhabited α] {ae : bool} :
+  ∀ {p : form}, qua_are_fo (bnot ae) p → (swap_all ae p <==α==> p) 
+| ⟪b, a⟫           h0 := eqv_refl _ _
+| (form.con b)     h0 := eqv_refl _ _
+| (form.bin b p q) h0 := 
+  eqv_trans 
+    (pull_over_bin_eqv ae b _ _ _)
+    (bin_eqv_bin
+      (swap_all_eqv h0.left)
+      (swap_all_eqv h0.right))
+| (form.qua b p)   h0 := 
+  begin
+    unfold swap_all,
+    by_cases h1 : ae = b,
+    { subst h1, rw if_pos rfl, 
+      apply qua_eqv_qua (swap_all_eqv h0.right) },
+    rw if_neg h1,
+    have h2 := bnot_eq_iff_ne.elim_right h1,
+    apply eqv_trans (swap_many_eqv α _ 
+      (idx_is_fo_swap_all _ (h0.left h2))), rw h2,
+    apply qua_eqv_qua (swap_all_eqv h0.right)
+end
+
+def prenexify : form → form
+| ⟪b, a⟫           := ⟪b, a⟫ 
+| (form.con b)     := form.con b
+| (form.bin b p q) := pull_over_bin none b tt p q
+| (form.qua b p)   := form.qua b (prenexify p)
+
+def AE : form → form := prenexify ∘ swap_all ff
+def EA : form → form := prenexify ∘ swap_all tt
 
 #exit
 /- Pull quantifiers over a binary connective. `ae` indicates
@@ -913,42 +1398,30 @@ def pull_over_bin_eqv [inhabited α] (ae ao : bool) :
 using_well_founded 
   {rel_tac := λ _ _, `[exact ⟨_, measure_wf form.size_of_two⟩]}
 
-/- Pull quantifiers over a quantifier via skolemization. 
-   `ae` indicates the type of quantifier being pulled. -/
-def pull_over_qua (ae : bool) : form → form
-| (form.qua b p) := 
-  have form.size_of (skolemize p) < form.size_of (form.qua b p),
-  { unfold skolemize, rw form.size_of_subst, 
-    simp only [form.size_of, nat.lt_succ_self, add_comm] }, 
-  if ae = b 
-  then form.qua ae (pull_over_qua $ skolemize p)
-  else form.qua (bnot ae) (form.qua b p)
-| p := form.qua (bnot ae) p
-
-lemma pull_over_qua_eqv (α : Type u) [inhabited α] (ae : bool) :
+lemma swap_many_eqv (α : Type u) [inhabited α] (ae : bool) :
   ∀ {p : form}, idx_is_fo 0 p → 
-  (pull_over_qua ae p <==α==> form.qua (bnot ae) p) 
+  (swap_many ae p <==α==> form.qua (bnot ae) p) 
 | ⟪b, a⟫           := λ _,  eqv_refl _ _
 | (form.con b)     := λ _, eqv_refl _ _
 | (form.bin b p q) := λ _, eqv_refl _ _ 
 | (form.qua b p)   := 
-  have form.size_of (skolemize p) < form.size_of (form.qua b p) :=
-  by { unfold skolemize, rw form.size_of_subst,
+  have form.size_of (swap p) < form.size_of (form.qua b p) :=
+  by { unfold swap, rw form.size_of_subst,
        form.show_size_lt
   
   },
   begin
     intro h0,
-    unfold pull_over_qua,
+    unfold swap_many,
     by_cases h1 : ae = b, 
     { subst h1, rw if_pos rfl,
-      apply eqv_trans _ (@skolemize_eqv α _ ae _ h0),
+      apply eqv_trans _ (@swap_eqv α _ ae _ h0),
       apply qua_eqv_qua,
-      apply pull_over_qua_eqv (idx_is_fo_skolemize h0) },
+      apply swap_many_eqv (zero_idx_is_fo_swap h0) },
     rw if_neg h1, apply eqv_refl _
   end
   
-  #check pull_over_qua
+  #check swap_many
 def skolem_prenex (ae : bool) : form → form
 | ⟪b, a⟫           := ⟪b, a⟫ 
 | (form.con b)     := form.con b
@@ -957,19 +1430,15 @@ def skolem_prenex (ae : bool) : form → form
 | (form.qua b p)   := 
   if ae = b
   then form.qua ae (skolem_prenex p)
-  else pull_over_qua ae (skolem_prenex p)
+  else swap_many ae (skolem_prenex p)
 
-lemma bnot_eq_iff_ne {a b : bool} : 
-  bnot a = b ↔ a ≠ b := 
-by cases a; cases b; simp only 
-   [bnot, ne, not_false_iff, eq_self_iff_true, not_true]
 
 lemma idx_is_fo_pull_over_bin {k : nat} (ae ao : bool) {p q : form} :
 idx_is_fo k p → idx_is_fo k q → 
 idx_is_fo k (pull_over_bin ae ao p q) := sorry
 
-lemma idx_is_fo_pull_over_qua {k : nat} (ae : bool) {p : form} :
-idx_is_fo (k + 1) p → idx_is_fo k (pull_over_qua ae p) := sorry
+lemma idx_is_fo_swap_many {k : nat} (ae : bool) {p : form} :
+idx_is_fo (k + 1) p → idx_is_fo k (swap_many ae p) := sorry
 
 lemma idx_is_fo_skolem_prenex (ae : bool) :
   ∀ {k : nat} {p : form}, idx_is_fo k p → idx_is_fo k (skolem_prenex ae p)  
@@ -985,7 +1454,7 @@ lemma idx_is_fo_skolem_prenex (ae : bool) :
     { subst h1, rw if_pos rfl,
       apply @idx_is_fo_skolem_prenex _ p h0 },
     rw if_neg h1, 
-    apply idx_is_fo_pull_over_qua,
+    apply idx_is_fo_swap_many,
     apply idx_is_fo_skolem_prenex,
     apply h0,
   end
@@ -1008,7 +1477,7 @@ lemma skolem_prenex_eqv [inhabited α] {ae : bool} :
       apply qua_eqv_qua (skolem_prenex_eqv h0.right) },
     rw if_neg h1,
     have h2 := bnot_eq_iff_ne.elim_right h1,
-    apply eqv_trans (pull_over_qua_eqv α _ 
+    apply eqv_trans (swap_many_eqv α _ 
       (idx_is_fo_skolem_prenex _ (h0.left h2))), rw h2,
     apply qua_eqv_qua (skolem_prenex_eqv h0.right)
 end
