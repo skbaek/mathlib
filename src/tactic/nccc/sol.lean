@@ -38,9 +38,9 @@ def atom.incr_idxs : atom → atom := atom.incr_idxs_ge 0
 
 namespace sub
 
-@[reducible] def domain : sub → list nat := list.map prod.fst
-
-@[reducible] def range : sub → list atom := list.map prod.snd
+--@[reducible] def domain : sub → list nat := list.map prod.fst
+--
+--@[reducible] def range : sub → list atom := list.map prod.snd
 
 open list
 
@@ -51,36 +51,37 @@ def get (k : nat) : sub → option atom
 | []            := none 
 | ((m, a) :: σ) := if k = m then a else get σ 
 
+lemma get_eq_of_ne {k m : nat} (a : atom) (σ : sub) : 
+  k ≠ m → sub.get k ((m, a) :: σ) = sub.get k σ :=
+by {intro h0, simp only [get, if_neg h0]}
+
 end sub
 
-lemma in_domain_of_is_some_get (k : nat) :
-  ∀ σ : sub, (σ.get k).is_some → k ∈ σ.domain 
-| []            h0 := by cases h0
-| ((m, a) :: σ) h0 :=
-  begin
-    by_cases h1 : k = m,
-    { left, simp only [h1] },
-    right, apply in_domain_of_is_some_get,
-    simpa only [sub.get, h1, if_false] using h0,
-  end
+--lemma in_domain_of_is_some_get (k : nat) :
+--  ∀ σ : sub, (σ.get k).is_some → k ∈ σ.domain 
+--| []            h0 := by cases h0
+--| ((m, a) :: σ) h0 :=
+--  begin
+--    by_cases h1 : k = m,
+--    { left, simp only [h1] },
+--    right, apply in_domain_of_is_some_get,
+--    simpa only [sub.get, h1, if_false] using h0,
+--  end
 
 --lemma in_range_of_get_eq_some {k : nat } {a : atom} :
 --  ∀ {σ : sub}, (σ.get k) = some a → a ∈ σ.range := sorry 
 
-lemma get_zero_incr_idxs (σ : sub) :
-  σ.incr_idxs.get 0 = none :=
-begin
-  cases h0 : σ.incr_idxs.get 0 with a, 
-  { refl },
-  have h1 := in_domain_of_is_some_get 0 σ.incr_idxs _,
-  { have h2 : ∃ a : ℕ × atom, a ∈ σ ∧ 
-              (prod.map nat.succ atom.incr_idxs a).fst = 0,
-    { simpa only [sub.domain, sub.incr_idxs, 
-      list.map_map, list.mem_map] using h1 },
-    rcases h2 with ⟨⟨k, a⟩, _, h3⟩,
-    cases (nat.succ_ne_zero _ h3) },
-  rw h0, simp
-end
+lemma get_zero_incr_idxs :
+  ∀ σ : sub, σ.incr_idxs.get 0 = none 
+| []            := rfl
+| ((m, a) :: σ) :=
+  begin
+    have h0 : sub.get 0 (sub.incr_idxs ((m, a) :: σ)) = 
+              sub.get 0 (sub.incr_idxs σ),
+    { apply sub.get_eq_of_ne,
+      apply (ne.symm $ nat.succ_ne_zero _) },
+    rw h0, apply get_zero_incr_idxs,
+  end
 
 lemma get_succ_incr_idxs (k : nat) : 
   ∀ σ : sub, σ.incr_idxs.get (k + 1) = atom.incr_idxs <$> (σ.get k)
@@ -447,6 +448,10 @@ def head_occ_on (k : nat) : bool → atom → Prop
 
 def head_occ (k : nat) : atom → Prop := head_occ_on k ff
 
+lemma head_occ_app_var (k m : nat) (a : atom) :
+  head_occ k (a & (# m)) ↔ head_occ k a := 
+by simp only [head_occ, head_occ_on, or_false]
+
 @[reducible] def swap (k : nat) : sub := 
 [(k, # (k + 1) & # k), (k + 1, # k)]
 
@@ -470,41 +475,36 @@ begin
     if_neg h0, if_neg h1 ], refl
 end
 
-lemma head_occ_succ_succ (k : nat) :
-  ∀ a : atom,
-  head_occ (k + 2) (a.subst $ swap k) → 
-  head_occ (k + 2) a 
-| (# m)       := 
+lemma head_occ_succ_succ (k m : nat) (h0 : m + 1 < k) : 
+  ∀ a : atom, head_occ k (a.subst $ swap m) → head_occ k a 
+| (# n) h1 := 
   begin
-    intro h0, 
-    rcases subst_swap_var k m 
-      with ⟨_, h1⟩ | ⟨_, h1⟩ | ⟨_, _, h1⟩;
-    rw h1 at h0,
-    { cases h0,
-      { cases nat.succ_ne_self _ h0 },
-      cases h0 },
-    { have h2 : k + 2 ≠ k, 
-      { apply ne.symm, 
-        rw [nat.ne_add_iff_pos_right], 
-        exact dec_trivial },
-      cases h2 h0 },
-    exact h0
+    rcases subst_swap_var m n 
+      with ⟨_, h2⟩ | ⟨_, h2⟩ | ⟨_, _, h2⟩;
+    rw h2 at h1,
+    { cases h1,
+      { cases (ne_of_gt h0) h1 },
+      cases h1 },
+    { have h3 : k ≠ m := 
+      ne_of_gt (lt_trans (lt_succ_self _) h0), 
+      cases h3 h1 },
+    exact h1,
   end
-| (a & (# m)) :=  
+| (a & (# n)) h1 :=  
   begin
-    rintro (h0 | h0), 
-    { left, exact head_occ_succ_succ a h0 },
-    rcases subst_swap_var k m 
-      with ⟨_, h1⟩ | ⟨_, h1⟩ | ⟨_, _, h1⟩;
-    rw h1 at h0; cases h0,
-    { cases nat.succ_ne_self _ h0 },
-    cases h0
+    cases h1,
+    { left, exact head_occ_succ_succ a h1 },
+    rcases subst_swap_var m n 
+      with ⟨_, h2⟩ | ⟨_, h2⟩ | ⟨_, _, h2⟩;
+    rw h2 at h1; cases h1,
+    { cases (ne_of_gt h0) h1 },
+    cases h1
   end
-| (a & (b & c)) := 
+| (a & (b & c)) h1 := 
   begin
-    rintro (h0 | h0), 
-    { left, exact head_occ_succ_succ a h0 },
-    right, apply head_occ_succ_succ (b & c) h0
+    cases h1,
+    { left, exact head_occ_succ_succ a h1 },
+    right, apply head_occ_succ_succ (b &c) h1
   end
   
 lemma head_occ_succ (k : nat) :
@@ -537,7 +537,6 @@ lemma head_occ_succ (k : nat) :
     right, apply head_occ_succ (b & c) h0
   end
 
-#exit
 
 
 
@@ -593,6 +592,7 @@ lemma head_occ_succ (k : nat) :
 
 
 
+/-
 
 instance list.decidable_eq_nil : ∀ as : list α, decidable (as = []) 
 | []       := is_true rfl
@@ -697,8 +697,6 @@ begin
   rw h0, constructor, refl
 end
 
-lemma head_occ_app_var (k m : nat) (a : atom) :
-  head_occ k (a & (# m)) ↔ head_occ k a := sorry
 
 lemma head_occ_app_of_head_occ_left (k : nat) (a b : atom) :
   head_occ k a → head_occ k (a & b) := sorry
@@ -739,13 +737,11 @@ lemma occ_at_subst {k : nat} {σ : sub} :
     --  constructor, exact h3 }
   end
 
-
-#exit
---#exit
 --def head_occ (k : nat) : atom → Prop
 --| (# m)         := k = m 
 --| (a & (# m))   := head_occ a
 --| (a & (b & c)) := head_occ a ∨ head_occ (b & c)
+-/
 
 def idx_is_fo : nat → form → Prop
 | k ⟪b, a⟫           := ¬ head_occ k a 
@@ -760,8 +756,8 @@ def qua_are_fo (ae : bool) : form → Prop
 | (form.qua b p)   := (ae = b → idx_is_fo 0 p) ∧ qua_are_fo p 
 
 
-def form.swap (p : form) : form :=
-  p.subst (swap 0) --[(0, (# 1) & (# 0)), (1, # 0)]
+def form.swap (k : nat) (p : form) : form :=
+  p.subst (swap k) --[(0, (# 1) & (# 0)), (1, # 0)]
 
 def evaluate (a : α) : value α :=
 λ _, (a, false)
@@ -819,9 +815,8 @@ lemma holds_subst :
   by { apply holds_qua_iff_holds_qua, intro v,
        simp only [model.assign_subst, holds_subst] }
 
-#check form.swap
 lemma holds_swap {M : model α} {v w : value α} {p : form} :
-  ((M ₀↦ v ₀↦ w) ⊨ p.swap) ↔ ((M ₀↦ w ₀↦ v ⬝ w) ⊨ p) := 
+  ((M ₀↦ v ₀↦ w) ⊨ p.swap 0) ↔ ((M ₀↦ w ₀↦ v ⬝ w) ⊨ p) := 
 begin
   unfold form.swap, 
   rw holds_subst,
@@ -861,9 +856,7 @@ end
 
 lemma val_eq_val_of_eq_except {M N : model α} {k : nat} (h0 : eq_except M N k) : 
   ∀ a : atom, ¬ head_occ k a → (a.val M = a.val N) 
-| (# m)   h1 := 
-  by { rw [head_occ_var ] at h1, 
-       apply h0.left _ (ne.symm h1) }
+| (# m)   h1 := by apply h0.left _ (ne.symm h1) 
 | (a & (# m)) h1 := 
   begin
     have h2 : a.val M = a.val N,
@@ -880,11 +873,10 @@ lemma val_eq_val_of_eq_except {M N : model α} {k : nat} (h0 : eq_except M N k) 
     cases not_or_distrib.elim_left h1 with ha hbc,
     have h2 : a.val M = a.val N,
     { apply val_eq_val_of_eq_except a _,
-      intro h2, apply h1 (head_occ_app_of_head_occ_left _ _ _ h2) },
+      intro h2, apply h1, left, exact h2 },
     have h3 : (b & c).val M = (b & c).val N,
     { apply val_eq_val_of_eq_except _ _, 
-      intro h3, apply h1 (head_occ_app_of_head_occ_right _ _ _ _ h3) },
-
+      intro h3, apply h1, right, exact h3 },
     simp only [atom.val, h2, h3]
   end
 
@@ -909,7 +901,7 @@ lemma holds_iff_holds_of_eq_except :
   end
 
 def ex_fa_swap_eqv [inhabited α] (p : form) : 
-  idx_is_fo 1 p → (∃* (∀* $ form.swap p) <==α==> ∀* (∃* p)) := 
+  idx_is_fo 1 p → (∃* (∀* $ p.swap 0) <==α==> ∀* (∃* p)) := 
 begin
   intros h0 M,
   constructor; intro h1,
@@ -941,7 +933,7 @@ lemma neg_subst :
   by { intro M, apply holds_qua_iff_holds_qua,
        intro v, apply neg_subst }
 
-lemma neg_swap {p : form} : p.swap.neg <==α==> p.neg.swap := 
+lemma neg_swap {p : form} : (p.swap 0).neg <==α==> p.neg.swap 0 := 
 neg_subst _ _
 
 lemma idx_is_fo_neg : ∀ k : nat, ∀ p : form, idx_is_fo k p.neg ↔ idx_is_fo k p 
@@ -961,11 +953,11 @@ begin
 end
 
 def fa_ex_swap_eqv [inhabited α] (p : form) : 
-  idx_is_fo 1 p → (∀* (∃* p.swap) <==α==> ∃* (∀* p)) := 
+  idx_is_fo 1 p → (∀* (∃* $ p.swap 0) <==α==> ∃* (∀* p)) := 
 begin
   intro h0, 
   replace h0 := (idx_is_fo_neg _ _).elim_right h0,
-  have h1 : (∃* (∀* p.swap.neg) <==α==> ∀* (∃* (form.neg p))) := 
+  have h1 : (∃* (∀* (p.swap 0).neg) <==α==> ∀* (∃* p.neg)) := 
   eqv_trans 
     (qua_eqv_qua (qua_eqv_qua neg_swap))
     (@ex_fa_swap_eqv α _ _ h0),
@@ -975,28 +967,11 @@ end
 
 def swap_eqv [inhabited α] (ae : bool) {p : form} : 
   idx_is_fo 1 p → 
-  (form.qua ae (form.qua (bnot ae) p.swap) 
+  (form.qua ae (form.qua (bnot ae) $ p.swap 0) 
     <==α==> form.qua (bnot ae) (form.qua ae p)) := 
 by { intro h0, cases ae,
      exact fa_ex_swap_eqv _ h0,
      exact ex_fa_swap_eqv _ h0 }
-
-
-lemma not_succ_succ_in_domain_swap (k : nat) :
-  ¬ (k + 2 ∈ (swap k).domain) := sorry
-
-
-#check in_domain_of_is_some_get
-.
-#exit
-
-| (a & (b & c)) h0 := 
-  begin
-    cases h0,
-    { left, apply head_occ_succ_succ a h0 },
-    right, apply head_occ_succ_succ (b & c) h0
-  end
-
 
 lemma zero_idx_is_fo_swap_aux : 
   ∀ k : nat, ∀ p : form, idx_is_fo (k + 1) p → 
@@ -1009,22 +984,19 @@ lemma zero_idx_is_fo_swap_aux :
 | k (form.qua b p)   h0 := zero_idx_is_fo_swap_aux (k + 1) p h0
 
 lemma zero_idx_is_fo_swap {p : form} :
-  idx_is_fo 1 p → idx_is_fo 0 (swap p) := 
+  idx_is_fo 1 p → idx_is_fo 0 (p.swap 0) := 
 zero_idx_is_fo_swap_aux 0 _
 
 lemma idx_is_fo_swap : 
-  ∀ k : nat, ∀ p : form, idx_is_fo (k + 2) p → 
-    idx_is_fo (k + 2) (form.subst [(k, (# (k + 1)) & (# k)), (k + 1, # k)] p) 
-| k ⟪b, a⟫           h0 := h0 ∘ (head_occ_succ_succ k _)
-| k (form.con b)     h0 := trivial
-| k (form.bin b p q) h0 := 
-  by { cases h0, constructor; 
+  ∀ k m : nat, m + 1 < k → 
+  ∀ p : form, idx_is_fo k p → idx_is_fo k (p.swap m)
+| k m h0 ⟪b, a⟫           h1 := h1 ∘ (head_occ_succ_succ k _ h0 _)
+| k m h0 (form.con b)     h1 := trivial
+| k m h0 (form.bin b p q) h1 := 
+  by { cases h1, constructor; 
        apply idx_is_fo_swap; assumption }
-| k (form.qua b p)   h0 := idx_is_fo_swap (k + 1) p h0
-
-  #exit
-lemma idx_is_fo_swap {k : nat} {p : form} :
-  idx_is_fo (k + 2) p → idx_is_fo (k + 2) (swap p) := sorry
+| k m h0 (form.qua b p)   h1 := 
+  idx_is_fo_swap (k + 1) (m + 1) (succ_lt_succ h0) p h1
 
 --@[reducible] def form.size_of_two : (Σ' (a : form), form) → nat 
 --| ⟨p, q⟩ := p.size_of + q.size_of 
@@ -1149,33 +1121,36 @@ using_well_founded
    `ae` indicates the type of quantifier being pulled. -/
 def swap_many (ae : bool) : form → form
 | (form.qua b p) := 
-  have form.size_of (swap p) < form.size_of (form.qua b p),
-  { unfold swap, rw form.size_of_subst, 
+  have form.size_of (p.swap 0) < form.size_of (form.qua b p),
+  { unfold form.swap, rw form.size_of_subst, 
     simp only [form.size_of, nat.lt_succ_self, add_comm] }, 
   if ae = b 
-  then form.qua ae (swap_many $ swap p)
+  then form.qua ae (swap_many $ p.swap 0)
   else form.qua (bnot ae) (form.qua b p)
 | p := form.qua (bnot ae) p
 
 lemma idx_is_fo_swap_many (ae : bool) :
-  ∀ {p : form} {k : nat}, idx_is_fo (k + 1) p → idx_is_fo k (swap_many ae p) 
+  ∀ {p : form} {k : nat}, 
+  idx_is_fo (k + 1) p → idx_is_fo k (swap_many ae p) 
 | ⟪b, a⟫           := λ _, id
 | (form.con b)     := λ _, id
 | (form.bin b p q) := λ _, id
 | (form.qua b p)   := 
-  have form.size_of (swap p) < form.size_of (form.qua b p),
-  by {unfold swap, rw form.size_of_subst, form.show_size_lt},
+  have form.size_of (p.swap 0) < form.size_of (form.qua b p),
+  by {unfold form.swap, rw form.size_of_subst, form.show_size_lt},
   begin
     intros k h0,
     unfold swap_many,
     by_cases h1 : ae = b,
-    { subst h1, rw if_pos rfl,
-      have h2 := @idx_is_fo_swap k _ h0,
+    { subst h1, 
+      rw if_pos rfl,
+      have h2 : idx_is_fo (k + 2) (p.swap 0) :=
+      @idx_is_fo_swap (k + 2) 0 
+        (succ_lt_succ $ zero_lt_succ _) _ h0,
       apply @idx_is_fo_swap_many _ (k + 1) h2 }, 
     rw if_neg h1, exact h0
   end
 
-#exit
 lemma swap_many_eqv (α : Type u) [inhabited α] (ae : bool) :
   ∀ {p : form}, idx_is_fo 0 p → 
   (swap_many ae p <==α==> form.qua (bnot ae) p) 
@@ -1183,8 +1158,8 @@ lemma swap_many_eqv (α : Type u) [inhabited α] (ae : bool) :
 | (form.con b)     := λ _, eqv_refl _ _
 | (form.bin b p q) := λ _, eqv_refl _ _ 
 | (form.qua b p)   := 
-  have form.size_of (swap p) < form.size_of (form.qua b p) :=
-  by { unfold swap, rw form.size_of_subst,
+  have form.size_of (p.swap 0) < form.size_of (form.qua b p) :=
+  by { unfold form.swap, rw form.size_of_subst,
        form.show_size_lt },
   begin
     intro h0,
@@ -1193,7 +1168,9 @@ lemma swap_many_eqv (α : Type u) [inhabited α] (ae : bool) :
     { subst h1, rw if_pos rfl,
       apply eqv_trans _ (@swap_eqv α _ ae _ h0),
       apply qua_eqv_qua,
-      apply swap_many_eqv (zero_idx_is_fo_swap h0) },
+      apply swap_many_eqv,-- (zero_idx_is_fo_swap h0) 
+      apply zero_idx_is_fo_swap,
+      apply h0 },
     rw if_neg h1, apply eqv_refl _
   end
 
@@ -1212,11 +1189,9 @@ lemma bnot_eq_iff_ne {a b : bool} :
 by cases a; cases b; simp only 
    [bnot, ne, not_false_iff, eq_self_iff_true, not_true]
 
-
-lemma idx_is_fo_pull_over_bin {k : nat} 
-  (ae : option bool) (ao ls : bool) {p q : form} :
-idx_is_fo k p → idx_is_fo k q → 
-idx_is_fo k (pull_over_bin ae ao ls p q) := sorry
+lemma idx_is_fo_pull_over_bin {k : nat} (ae : option bool) (ao ls : bool) :
+  ∀ {p q : form}, idx_is_fo k p → idx_is_fo k q → 
+  idx_is_fo k (pull_over_bin ae ao ls p q) := sorry
 
 lemma idx_is_fo_swap_all (ae : bool) :
   ∀ {k : nat} {p : form}, idx_is_fo k p → idx_is_fo k (swap_all ae p)  
@@ -1234,7 +1209,7 @@ lemma idx_is_fo_swap_all (ae : bool) :
     rw if_neg h1, 
     apply idx_is_fo_swap_many,
     apply idx_is_fo_swap_all,
-    apply h0,
+    apply h0
   end
 
 def pull_over_bin_eqv [inhabited α] 
@@ -1257,10 +1232,10 @@ lemma swap_all_eqv [inhabited α] {ae : bool} :
     by_cases h1 : ae = b,
     { subst h1, rw if_pos rfl, 
       apply qua_eqv_qua (swap_all_eqv h0.right) },
-    rw if_neg h1,
     have h2 := bnot_eq_iff_ne.elim_right h1,
+    rw [if_neg h1, ← h2],
     apply eqv_trans (swap_many_eqv α _ 
-      (idx_is_fo_swap_all _ (h0.left h2))), rw h2,
+      (idx_is_fo_swap_all _ (h0.left h2))), 
     apply qua_eqv_qua (swap_all_eqv h0.right)
 end
 
