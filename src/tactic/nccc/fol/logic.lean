@@ -1,27 +1,12 @@
-import logic.basic tactic.interactive
+import logic.basic
 
 universe u
-
 variables {α : Type u} {p q r : Prop}
 
-open tactic
-
-lemma forall_iff_forall {P Q : α → Prop} :
-  (∀ a, P a ↔ Q a) → ((∀ a, P a) ↔ (∀ a, Q a)) :=
-by { intro h0, constructor; rintros h1 a;
-     simpa only [h0 a] using h1 a }
-
-lemma exists_iff_exists {P Q : α → Prop} :
-  (∀ a, P a ↔ Q a) → ((∃ a, P a) ↔ (∃ a, Q a)) :=
-by { intro h0, constructor; rintro ⟨a, h1⟩;
-     refine ⟨a, _⟩; simpa only [h0 a] using h1 }
-
-lemma iff_of_not_of_not : ¬p → ¬q → (p ↔ q) :=
-λ hp' hq', ⟨λ hp, absurd hp hp', λ hq, absurd hq hq'⟩ 
-
-#exit
 lemma imp_of_imp (p) {q} : (p → q) → (p → q) := id
 
+lemma iff_of_not_of_not : ¬p → ¬q → (p ↔ q) :=
+λ hp' hq', iff.intro (λ hp, absurd hp hp') (λ hq, absurd hq hq')
 
 -- lemma exists_of_exists {p q : α → Prop} :
 --   (∀ x, p x → q x) → (∃ x, p x) → ∃ x, q x :=
@@ -35,6 +20,17 @@ lemma imp_of_imp (p) {q} : (p → q) → (p → q) := id
 --   (∀ x, p x → q x) → (∀ x, p x) → ∀ x, q x :=
 -- by { intros h1 h2 a, apply h1 _ (h2 a) }
 
+lemma forall_iff_forall {P Q : α → Prop} :
+  (∀ a, P a ↔ Q a) → ((∀ a, P a) ↔ (∀ a, Q a)) :=
+λ h, iff.intro
+  (λ hP a, (h a).elim_left (hP _))
+  (λ hQ a, (h a).elim_right (hQ _))
+
+lemma exists_iff_exists {P Q : α → Prop} :
+  (∀ a, P a ↔ Q a) → ((∃ a, P a) ↔ (∃ a, Q a)) :=
+λ h, iff.intro
+  (λ hP, begin cases hP with a ha, existsi a, apply (h a).elim_left ha end)
+  (λ hQ, begin cases hQ with a ha, existsi a, apply (h a).elim_right ha end)
 
 namespace classical
 
