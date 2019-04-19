@@ -1,0 +1,142 @@
+import logic.basic tactic.interactive
+
+universe u
+
+variables {α : Type u} {p q r : Prop}
+
+open tactic
+
+lemma forall_iff_forall {P Q : α → Prop} :
+  (∀ a, P a ↔ Q a) → ((∀ a, P a) ↔ (∀ a, Q a)) :=
+by { intro h0, constructor; rintros h1 a;
+     simpa only [h0 a] using h1 a }
+
+lemma exists_iff_exists {P Q : α → Prop} :
+  (∀ a, P a ↔ Q a) → ((∃ a, P a) ↔ (∃ a, Q a)) :=
+by { intro h0, constructor; rintro ⟨a, h1⟩;
+     refine ⟨a, _⟩; simpa only [h0 a] using h1 }
+
+lemma iff_of_not_of_not : ¬p → ¬q → (p ↔ q) :=
+λ hp' hq', ⟨λ hp, absurd hp hp', λ hq, absurd hq hq'⟩
+
+lemma iff_of_left_of_right : p → q → (p ↔ q) :=
+λ hp hq, iff.intro (λ _, hq) (λ _, hp)
+
+#exit
+lemma imp_of_imp (p) {q} : (p → q) → (p → q) := id
+
+
+-- lemma exists_of_exists {p q : α → Prop} :
+--   (∀ x, p x → q x) → (∃ x, p x) → ∃ x, q x :=
+-- begin
+--   intros h1 h2,
+--   cases h2 with a h2,
+--   refine ⟨a, h1 _ h2⟩,
+-- end
+--
+-- lemma forall_of_forall {p q : α → Prop} :
+--   (∀ x, p x → q x) → (∀ x, p x) → ∀ x, q x :=
+-- by { intros h1 h2 a, apply h1 _ (h2 a) }
+
+
+namespace classical
+
+local attribute [instance] prop_decidable
+
+protected lemma not_and_distrib : ¬(p ∧ q) ↔ ¬p ∨ ¬q := not_and_distrib
+
+protected lemma imp_iff_not_or : p → q ↔ ¬p ∨ q := imp_iff_not_or
+
+lemma iff_iff_not_or_and_or_not : (p ↔ q) ↔ ((¬p ∨ q) ∧ (p ∨ ¬q)) :=
+begin
+  rw [iff_iff_implies_and_implies p q],
+  simp only [imp_iff_not_or, or.comm],
+end
+
+end classical
+
+#exit
+
+
+
+lemma or_iff_or {p p' q q' : Prop} :
+  (p ↔ p') → (q ↔ q') → ((p ∨ q) ↔ (p' ∨ q')) :=
+begin
+  intros hp hq, rewrite hp, rewrite hq
+end
+
+lemma and_iff_and {p p' q q' : Prop} :
+  (p ↔ p') → (q ↔ q') → ((p ∧ q) ↔ (p' ∧ q')) :=
+begin intros hp hq, rewrite hp, rewrite hq end
+
+
+#exit
+lemma not_true.elim : Π {C : Sort u}, ¬ true → C :=
+λ _ h, false.elim (h trivial)
+
+lemma not_and.elim :
+  ∀ {a b c : Prop}, ¬(a ∧ b) → (¬a → c) → (¬b → c) → c :=
+begin
+  intros a b c h1 h2 h3,
+  cases (@classical.or_not a) with ha ha,
+  apply (h3 $ λ hb, h1 ⟨ha,hb⟩), apply h2 ha
+end
+
+lemma not_or.elim
+  : ∀ {a b c : Prop}, ¬(a ∨ b) → (¬a → ¬b → c) → c :=
+begin
+  intros a b c h1 h2, rw not_or_distrib at h1,
+  cases h1, apply h2; assumption
+end
+
+lemma imp.elim :
+  ∀ {a b c : Prop}, (a → b) → (¬a → c) → (b → c) → c :=
+begin
+  intros a b c h1 h2 h3,
+  cases (@classical.or_not a) with ha ha,
+  apply (h3 $ h1 ha), apply h2 ha
+end
+
+lemma not_imp.elim
+  : ∀ {a b c : Prop}, ¬(a → b) → (a → ¬b → c) → c :=
+begin
+  intros a b c h1 h2,
+  cases (@classical.or_not b) with hb hb,
+  exfalso, apply (h1 $ λ _, hb),
+  cases (@classical.or_not a) with ha ha,
+  apply (h2 ha hb), exfalso,
+  apply (h1 $ λ ha', false.elim $ ha ha'),
+end
+
+lemma not_forall.elim :
+  ∀ {α : Sort u} {p : α → Prop} {b : Prop},
+  (¬ ∀ (x : α), p x) → (∀ (a : α), (¬ p a) → b) → b :=
+begin
+  intros α p b h1 h2, rw classical.not_forall at h1,
+  cases h1 with a ha, apply h2 _ ha
+end
+
+variables {p q : Prop}
+
+lemma not_or_not_of_not_and :
+  ¬ (p ∧ q) → (¬ p ∨ ¬ q) :=
+λ h, @classical.by_cases p (¬ p ∨ ¬ q)
+  (λ hp, or.inr (λ hq, h $ and.intro hp hq))
+  (λ hnp, or.inl hnp)
+
+lemma not_or_left : ¬ (p ∨ q) → ¬ p :=
+λ h, (not_or_distrib.elim_left h).left
+
+lemma not_or_right : ¬ (p ∨ q) → ¬ q :=
+λ h, (not_or_distrib.elim_left h).right
+
+lemma not_or_of_imp_cls : (p → q) → ¬p ∨ q :=
+@not_or_of_imp p q (classical.dec p)
+
+lemma not_imp_left : ¬ (p → q) → p :=
+λ h, ((@not_imp _ _ (classical.dec _)).elim_left h).left
+
+lemma not_imp_right : ¬ (p → q) → ¬ q :=
+λ h, ((@not_imp _ _ (classical.dec _)).elim_left h).right
+
+variables {α : Type}
