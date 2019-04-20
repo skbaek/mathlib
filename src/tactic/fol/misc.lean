@@ -9,6 +9,11 @@ lemma bnot_eq_iff_ne {a b : bool} :
 by cases a; cases b; simp only
    [bnot, ne, not_false_iff, eq_self_iff_true, not_true]
 
+lemma eq_bnot_iff_ne {a b : bool} :
+  a = bnot b ↔ a ≠ b :=
+by cases a; cases b; simp only
+   [bnot, ne, not_false_iff, eq_self_iff_true, not_true]
+
 lemma ite_cases {r : α → Prop} {p : Prop} [decidable p] {a b : α} :
   r a → r b → r (ite p a b) :=
 by { intros h0 h1, by_cases h2 : p,

@@ -11,13 +11,17 @@ begin
 end
 
 lemma succ_eq_succ (k m : nat) :
-  k.succ = m.succ ↔ k = m := 
+  k.succ = m.succ ↔ k = m :=
 by { constructor; intro h0,
      {cases h0, refl}, rw h0 }
 
-end nat
+lemma succ_ne_succ {k m : nat} :
+  k ≠ m → k.succ ≠ m.succ :=
+by { intros h0 h1, apply h0,
+     rwa succ_eq_succ at h1 }
 
-#exit
+lemma zero_ne_succ (k : nat) :
+  0 ≠ (k + 1) := ne_of_lt (zero_lt_succ _)
 
 def digit_to_subs : char → char
 | '0' := '₀'
@@ -34,3 +38,5 @@ def digit_to_subs : char → char
 
 def to_subs (n : nat) : string :=
 ⟨n.repr.data.map digit_to_subs⟩
+
+end nat
