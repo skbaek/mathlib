@@ -154,22 +154,22 @@ lemma val_folize_zero (M : model α) (v : nat → α) :
     eq_self_iff_true, term₂.folize]
 
 lemma holds_folize_zero (M : model α) (v : nat → α) :
-  ∀ {p : form₂}, p.F → ((p.folize 0).holds M v ↔ holds M p)
+  ∀ {p : form₂}, p.F → ((p.folize 0).holds M v ↔ p.holds M)
 | (form₂.lit b a) h0 :=
   by cases b;
-     simp only [holds, form.holds,
+     simp only [form₂.holds, form.holds,
        form₂.folize, val_folize_zero]
 | (form₂.bin b p q) h0 :=
   by { cases b; apply pred_mono_2;
-       simp only [ holds, form.holds, form₂.folize,
-       holds_folize_zero h0.left,
+       simp only [ form₂.holds, form.holds,
+       form₂.folize, holds_folize_zero h0.left,
        holds_folize_zero h0.right ] }
 
 lemma holds_exs_of_exv_folize :
   ∀ {p : form₂} (k : nat) {M : model α},
   foq tt p → p.QF tt → p.fov_lt k →
   (∃ v : nat → α, (p.folize k).holds M v) →
-  (holds M $ exs k p)
+  (exs k p).holds M
 | (form₂.lit b a) 0  :=
   by { intros M h0 h1 h2 h3,
        cases h3 with v h3,

@@ -22,23 +22,6 @@ lemma iff_of_not_of_not : ¬p → ¬q → (p ↔ q) :=
 lemma iff_of_left_of_right : p → q → (p ↔ q) :=
 λ hp hq, iff.intro (λ _, hq) (λ _, hp)
 
-#exit
-lemma imp_of_imp (p) {q} : (p → q) → (p → q) := id
-
-
--- lemma exists_of_exists {p q : α → Prop} :
---   (∀ x, p x → q x) → (∃ x, p x) → ∃ x, q x :=
--- begin
---   intros h1 h2,
---   cases h2 with a h2,
---   refine ⟨a, h1 _ h2⟩,
--- end
---
--- lemma forall_of_forall {p q : α → Prop} :
---   (∀ x, p x → q x) → (∀ x, p x) → ∀ x, q x :=
--- by { intros h1 h2 a, apply h1 _ (h2 a) }
-
-
 namespace classical
 
 local attribute [instance] prop_decidable
@@ -56,6 +39,24 @@ end
 end classical
 
 #exit
+lemma imp_of_imp (p) {q} : (p → q) → (p → q) := id
+
+
+-- lemma exists_of_exists {p q : α → Prop} :
+--   (∀ x, p x → q x) → (∃ x, p x) → ∃ x, q x :=
+-- begin
+--   intros h1 h2,
+--   cases h2 with a h2,
+--   refine ⟨a, h1 _ h2⟩,
+-- end
+--
+-- lemma forall_of_forall {p q : α → Prop} :
+--   (∀ x, p x → q x) → (∀ x, p x) → ∀ x, q x :=
+-- by { intros h1 h2 a, apply h1 _ (h2 a) }
+
+
+
+#exit
 
 
 
@@ -69,6 +70,19 @@ lemma and_iff_and {p p' q q' : Prop} :
   (p ↔ p') → (q ↔ q') → ((p ∧ q) ↔ (p' ∧ q')) :=
 begin intros hp hq, rewrite hp, rewrite hq end
 
+namespace classical
+
+--protected lemma not_and_distrib : ¬(p ∧ q) ↔ ¬p ∨ ¬q := not_and_distrib
+
+protected lemma imp_iff_not_or : p → q ↔ ¬p ∨ q := imp_iff_not_or
+
+lemma iff_iff_not_or_and_or_not : (p ↔ q) ↔ ((¬p ∨ q) ∧ (p ∨ ¬q)) :=
+begin
+  rw [iff_iff_implies_and_implies p q],
+  simp only [imp_iff_not_or, or.comm],
+end
+
+end classical
 
 #exit
 lemma not_true.elim : Π {C : Sort u}, ¬ true → C :=

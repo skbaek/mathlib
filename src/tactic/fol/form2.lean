@@ -26,6 +26,8 @@ local notation p `∧*` q        := form₂.bin ff p q
 local notation `∃*`            := form₂.qua tt
 local notation `∀*`            := form₂.qua ff
 
+namespace form₂
+
 def holds : model α → form₂ → Prop
 | M ⟪tt, a⟫  :=   (a.val M []).snd
 | M ⟪ff, a⟫  := ¬ (a.val M []).snd
@@ -35,31 +37,6 @@ def holds : model α → form₂ → Prop
 | M (∃* p)   := ∃ x : value α, holds (M ₀↦ x) p
 
 infix `⊨` : 1000 := holds
-
-def fam (α : Type u) (p : form₂) : Prop :=
-  ∀ M : model α, M ⊨ p
-
-lemma fam_fa (α : Type u) (p : form₂) :
-  fam α (∀* p) ↔ fam α p :=
-begin
-  constructor; intros h0 M,
-  { have h1 := h0 M.decr_idxs (M 0),
-    rwa assign_decr_idxs at h1 },
-  intro v, apply h0
-end
-
-def eqv (α : Type u) (p q : form₂) : Prop :=
-∀ M : model α, (M ⊨ p ↔ M ⊨ q)
-
-notation p `<==` α `==>` q := eqv α p q
-
-lemma eqv_trans {α : Type u} {p q r : form₂} :
-  (p <==α==> q) → (q <==α==> r) → (p <==α==> r) :=
-λ h0 h1 M, by rw [h0 M, h1 M]
-
-lemma eqv_refl (α : Type u) (p : form₂) : p <==α==> p := λ M, by refl
-
-namespace form₂
 
 @[reducible] def size_of : form₂ → nat
 | ⟪_, _⟫           := 1
@@ -128,6 +105,29 @@ by { intros h0 h1, cases b;
      apply pred_mono_2; assumption }
 
 end form₂
+def fam (α : Type u) (p : form₂) : Prop :=
+  ∀ M : model α, M ⊨ p
+
+lemma fam_fa (α : Type u) (p : form₂) :
+  fam α (∀* p) ↔ fam α p :=
+begin
+  constructor; intros h0 M,
+  { have h1 := h0 M.decr_idxs (M 0),
+    rwa assign_decr_idxs at h1 },
+  intro v, apply h0
+end
+
+def eqv (α : Type u) (p q : form₂) : Prop :=
+∀ M : model α, (M ⊨ p ↔ M ⊨ q)
+
+notation p `<==` α `==>` q := eqv α p q
+
+lemma eqv_trans {α : Type u} {p q r : form₂} :
+  (p <==α==> q) → (q <==α==> r) → (p <==α==> r) :=
+λ h0 h1 M, by rw [h0 M, h1 M]
+
+lemma eqv_refl (α : Type u) (p : form₂) : p <==α==> p := λ M, by refl
+
 
 lemma bin_eqv_bin {p q r s : form₂} {b : bool} :
   (p <==α==> q) → (r <==α==> s) →
@@ -158,30 +158,30 @@ lemma holds_neg : ∀ {M : model α}, ∀ {p : form₂}, M ⊨ p.neg ↔ ¬ M �
 | M ⟪b, a⟫ :=
   by cases b;
      simp only [classical.not_not, form₂.neg,
-     holds, bool.bnot_true, bool.bnot_false]
+     form₂.holds, bool.bnot_true, bool.bnot_false]
 | M (p ∨* q) :=
   begin
-    unfold holds,
+    unfold form₂.holds,
     rw not_or_distrib,
     apply pred_mono_2;
     apply holds_neg
   end
 | M (p ∧* q) :=
   begin
-    unfold holds,
+    unfold form₂.holds,
     rw @not_and_distrib _ _ (classical.dec _),
     apply pred_mono_2; apply holds_neg
   end
 | M (∀* p)   :=
   begin
-    unfold holds,
+    unfold form₂.holds,
     rw @not_forall _ _ (classical.dec _) (classical.dec_pred _),
     apply exists_iff_exists,
     intro v, apply holds_neg
   end
 | M (∃* p)   :=
   begin
-    unfold holds,
+    unfold form₂.holds,
     rw @not_exists,
     apply forall_iff_forall,
     intro v, apply holds_neg
@@ -194,7 +194,7 @@ lemma holds_incr_ge :
     ∀ p : form₂, M ⊨ p.incr_ge k ↔ N ⊨ p
 | M N k h0 h1 ⟪b, a⟫ :=
   by cases b; simp [form₂.incr_ge,
-     holds, val_incr_ge h0 h1 a]
+     form₂.holds, val_incr_ge h0 h1 a]
 | M N k h0 h1 (form₂.bin b p q) :=
   by { apply form₂.holds_bin_iff_holds_bin;
        apply holds_incr_ge _ _ _ h0 h1 }
@@ -249,7 +249,7 @@ lemma holds_subst :
   ∀ (M : model α) (p : form₂) (σ : sub₂),
   M ⊨ (p.subst σ) ↔ M.subst σ ⊨ p
 | M ⟪b, a⟫ σ :=
-  by cases b; simp only [form₂.subst, holds, val_subst M σ a]
+  by cases b; simp only [form₂.subst, form₂.holds, val_subst M σ a]
 | M (form₂.bin b p q) σ :=
   by apply form₂.holds_bin_iff_holds_bin; apply holds_subst
 | M (form₂.qua b p)   σ :=

@@ -180,7 +180,7 @@ lemma holds_iff_holds_of_eq_except :
   ∀ {M N : model α} {k : nat} (p : form₂),
   eq_except M N k → p.fov k → (M ⊨ p ↔ N ⊨ p)
 | M N k ⟪b, a⟫ h0 h1 :=
-  by cases b; simp [holds, val_eq_val_of_eq_except h0 a h1]
+  by cases b; simp [form₂.holds, val_eq_val_of_eq_except h0 a h1]
 | M N k (form₂.bin b p q) h0 h1 :=
   begin
     cases h1,
@@ -573,84 +573,3 @@ lemma QDF_prenexify (b : bool) :
 
 lemma QDF_QDFy (b : bool) (p : form₂) : (QDFy b p).QDF b :=
 by {apply QDF_prenexify, apply QN_swap_all}
-
-
-#exit
-
-lemma in_blocks (b : bool) : form₂ → Prop
-
-
-
-end form₂
-
-
-#exit
-
-def is_AE : form₂ → Prop
-| (∀* p) := is_AE p
-| p      := is_E p
-def AE : form₂ → form₂ := prenexify ∘ swap_all ff
-
-def is_AF : form₂ → Prop
-| ⟪_, _⟫           := true
-| (form₂.bin _ p q) := is_AF p ∧ is_AF q
-| (∀* p)           := false
-| (∃* p)           := is_AF p
-
-def is_AAF : form₂ → Prop
-| (∀* p) := is_AAF p
-| p      := is_AF p
-
-
-
-lemma is_AAF_swap_all_ff :
-  ∀ p : form₂, is_AAF (swap_all ff p)
-| ⟪_, _⟫           := true
-| (form₂.bin _ p q) :=
-  ⟨ is_AAF_swap_all_ff _,
-    is_AAF_swap_all_ff _ ⟩
-
- #exit
---| (∀* p)           := --false
-| (∃* p)           := --is_AF p
-
-#exit
-lemma foex_AE (p : form₂) :
-  foq tt p → foq tt (AE p) :=
-λ h, foq_prenexify _ (foq_swap_all _ h)
-
-
-
-def is_E : form₂ → Prop
-| (∃* p) := is_E p
-| p      := is_QF p
-
-def is_AE : form₂ → Prop
-| (∀* p) := is_AE p
-| p      := is_E p
-
-
-
-#exit
-lemma is_AE_AE (p : form₂) : is_AE (AE p) := sorry
-
-
-
-#exit
-
-lemma AE_eqv [inhabited α] (p : form₂) :
-  foq tt p → (AE p <==α==> p) :=
-λ h, eqv_trans (prenexify_eqv _) (swap_all_eqv h)
-
-#exit
-def EA : form₂ → form₂ := prenexify ∘ swap_all tt
-
-
-
-
-
-
-
-lemma EA_eqv [inhabited α] (p : form₂) :
-  foq ff p → (EA p <==α==> p) :=
-λ h, eqv_trans (prenexify_eqv _) (swap_all_eqv h)
