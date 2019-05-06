@@ -1,4 +1,6 @@
-import .tactic  tactic.fol.form2
+/- Reification of goals into deeply embedded SOL. -/
+
+import tactic.fol.form2
 
 open expr tactic
 
@@ -42,9 +44,13 @@ meta def subst_symb (y : expr) : nat → expr → expr
 
 meta def abst (dx : expr) : expr → tactic expr
 | x :=
-  commit (get_symb dx x)
-    (return x)
-    (λ y, abst (pi name.anonymous binder_info.default dx (subst_symb y 0 x)))
+  (do y ← get_symb dx x,
+      abst (pi name.anonymous binder_info.default dx (subst_symb y 0 x))) <|>
+  (return x)
+
+  --commit (get_symb dx x)
+  --  (return x)
+  --  (λ y, abst (pi name.anonymous binder_info.default dx (subst_symb y 0 x)))
 
 
 meta def get_domain_core : expr → tactic expr

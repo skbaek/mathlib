@@ -1,3 +1,6 @@
+/- Swapping adjacent quantifiers
+   for Skolemization and Herbrandization. -/
+
 import tactic.fol.pull
 
 universe u
@@ -87,7 +90,6 @@ lemma fov_swap (k : nat) :
   ⟨fov_swap a h0.left, fov_swap (b &c) h0.right⟩
 
 end term₂
-
 
 def form₂.swap (k : nat) (p : form₂) : form₂ :=
 p.subst (swap k)
@@ -265,19 +267,6 @@ lemma fov_swap_of_ne :
     (succ_ne_succ hO) (succ_ne_succ hS) p h1
 
 end form₂
---lemma fov_swap_zero {p : form₂} :
---  p.fov 1 → (p.swap 0).fov 0 :=
---fov_swap_zero_aux 0 _
-
---lemma fov_swap :
---  ∀ k m : nat, m + 1 < k →
---  ∀ p : form₂, p.fov k → (p.swap m).fov k
---| k m h0 ⟪b, a⟫           h1 := fov_succ_succ _ _ h0 _ h1
---| k m h0 (form₂.bin b p q) h1 :=
---  by { cases h1, constructor;
---       apply fov_swap; assumption }
---| k m h0 (form₂.qua b p)   h1 :=
---  fov_swap (k + 1) (m + 1) (succ_lt_succ h0) p h1
 
 lemma foq_swap (b : bool) :
   ∀ (k : nat) {p : form₂}, foq b p → foq b (p.swap k)
@@ -288,7 +277,7 @@ lemma foq_swap (b : bool) :
     constructor,
     { intro h1,
       apply form₂.fov_swap_of_ne 0 (k + 1)
-        (zero_ne_succ _) (zero_ne_succ _) p (h0.left h1) },
+        (@zero_ne_succ _) (@zero_ne_succ _) p (h0.left h1) },
     apply foq_swap _ h0.right
   end
 
@@ -321,8 +310,8 @@ lemma fov_swap_many (ae : bool) :
     by_cases h1 : ae = b,
     { subst h1, rw if_pos rfl,
       have h2 : (p.swap 0).fov (k + 2) :=
-      @form₂.fov_swap_of_ne (k + 2) 0 (zero_ne_succ _).symm
-        (succ_ne_succ (zero_ne_succ _).symm) _ h0,
+      @form₂.fov_swap_of_ne (k + 2) 0 (ne.symm (@zero_ne_succ _))
+        (succ_ne_succ $ ne.symm (@zero_ne_succ _)) _ h0,
     apply @fov_swap_many _ (k + 1) h2, },
     rw if_neg h1, exact h0
   end

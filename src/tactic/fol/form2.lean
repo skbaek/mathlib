@@ -1,4 +1,7 @@
-import .sub2 .logic .nat
+/- Second-order formulas. -/
+
+import tactic.fol.sub2
+import data.nat.basic
 
 universe u
 
@@ -116,6 +119,7 @@ by { intros h0 h1, cases b;
      apply pred_mono_2; assumption }
 
 end form₂
+
 def fam (α : Type u) (p : form₂) : Prop :=
   ∀ M : model α, M ⊨ p
 
@@ -138,7 +142,6 @@ lemma eqv_trans {α : Type u} {p q r : form₂} :
 λ h0 h1 M, by rw [h0 M, h1 M]
 
 lemma eqv_refl (α : Type u) (p : form₂) : p <==α==> p := λ M, by refl
-
 
 lemma bin_eqv_bin {p q r s : form₂} {b : bool} :
   (p <==α==> q) → (r <==α==> s) →

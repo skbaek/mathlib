@@ -1,3 +1,5 @@
+/- First-order formulas. -/
+
 import .term
 
 universe u
@@ -24,7 +26,7 @@ by { intros h0 h1,
      cases b; unfold form.holds;
      apply pred_mono_2; assumption }
 
-def fmev (α : Type u) (p : form) : Prop :=
+def fam_exv (α : Type u) (p : form) : Prop :=
 ∀ M : model α, ∃ v : nat → α, p.holds M v
 
 end form

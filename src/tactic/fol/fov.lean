@@ -1,4 +1,9 @@
-import .form2 .nat
+/- First-order constraint for variables.
+   `fov k x` asserts that variable k is only used
+   as a first-order variable in x. I.e., variable k
+   never occurs at the head of a complex term. -/
+
+import tactic.fol.form2
 
 universe u
 

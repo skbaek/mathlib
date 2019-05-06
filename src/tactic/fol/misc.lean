@@ -1,8 +1,14 @@
+/- Miscellaneous. -/
+
 import tactic.ext algebra.ordered_group
 
 universe u
 
 variables {α β γ δ : Type u}
+
+def list.write (f : α → string) (s : string) : list α → string
+| []        := ""
+| (a :: as) := f a ++ s ++ list.write as
 
 lemma bnot_eq_iff_ne {a b : bool} :
   bnot a = b ↔ a ≠ b :=

@@ -1,6 +1,11 @@
 import tactic.fol.mat
+import tactic.fol.attempt
+import data.list.basic
+
+/- 'mat.inst m n' asserts that matrix m is an instance of matrix n. -/
 
 universe u
+
 variable {α : Type}
 
 local notation `&` k   := term.sym k
@@ -48,8 +53,8 @@ def cla.find_inst : sub → cla → cla → option sub
           cla.find_inst σ' C D
   else none
 
-lemma fmev_of_fmev_inst {m n : mat} :
-  mat.inst m n → m.fmev α → n.fmev α :=
+lemma fam_exv_of_fam_exv_inst {m n : mat} :
+  mat.inst m n → m.fam_exv α → n.fam_exv α :=
 begin
   rintros h0 h1 M,
   rcases h1 M with ⟨v, c, h1, h2⟩,
@@ -63,7 +68,7 @@ instance attempt.inst (m n : mat) : attempt (mat.inst m n) :=
 begin
   apply @list.attempt_ball _ _ (λ c, _),
   apply @list.attempt_bex _ _ (λ d, _),
-  apply @list.attempt_ex_of_list _ _ (λ k, _) (list.range d.length),
+  apply @attempt_ex_of_list _ _ (λ k, _) (list.range d.length),
   cases (cla.find_inst [] c (rotate d k)) with σ,
   { apply attempt.unknown },
   by_cases h0 : (c = cla.subst σ (rotate d k)),

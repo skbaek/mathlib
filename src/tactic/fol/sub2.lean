@@ -1,3 +1,5 @@
+/- Second-order substitutions. -/
+
 import .term2 logic.basic logic.function
 
 universe u

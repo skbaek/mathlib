@@ -1,3 +1,6 @@
+/- Pulling quantifiers for Skolemization
+   and prenex normalization. -/
+
 import tactic.fol.fov
 
 universe u

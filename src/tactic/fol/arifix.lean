@@ -1,3 +1,8 @@
+/- `arifix` is similar to `form₂.holds`, but fixes the
+   arity of each quantifier's domain. This is necessary
+   for unification with the initial goal from which the
+   reified formula was obtained. -/
+
 import .swap
 
 variable {α : Type}

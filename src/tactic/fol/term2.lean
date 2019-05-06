@@ -1,4 +1,7 @@
-import .model .misc .nat
+/- Second-order terms. -/
+
+import tactic.fol.model
+import tactic.fol.misc
 
 universe u
 

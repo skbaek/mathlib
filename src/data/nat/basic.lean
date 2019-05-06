@@ -27,7 +27,28 @@ theorem succ_inj' {n m : ℕ} : succ n = succ m ↔ n = m :=
 theorem succ_le_succ_iff {m n : ℕ} : succ m ≤ succ n ↔ m ≤ n :=
 ⟨le_of_succ_le_succ, succ_le_succ⟩
 
-lemma zero_max {m : nat} : max 0 m = m := 
+lemma succ_lt_succ_iff :
+  ∀ {a b : ℕ}, a.succ < b.succ ↔ a < b :=
+begin
+  intros a b, apply iff.intro,
+  apply lt_of_succ_lt_succ,
+  apply succ_lt_succ
+end
+
+lemma succ_eq_succ_iff (k m : nat) :
+  k.succ = m.succ ↔ k = m :=
+by { constructor; intro h0,
+     {cases h0, refl}, rw h0 }
+
+lemma succ_ne_succ {k m : nat} :
+  k ≠ m → k.succ ≠ m.succ :=
+by { intros h0 h1, apply h0,
+     rwa succ_eq_succ_iff at h1 }
+
+lemma zero_ne_succ {k : nat} : 0 ≠ k.succ :=
+λ h, by cases h
+
+lemma zero_max {m : nat} : max 0 m = m :=
 max_eq_right (zero_le _)
 
 theorem max_succ_succ {m n : ℕ} :
@@ -45,7 +66,7 @@ succ_le_succ_iff
 lemma succ_le_iff {m n : ℕ} : succ m ≤ n ↔ m < n :=
 ⟨lt_of_succ_le, succ_le_of_lt⟩
 
-lemma lt_iff_add_one_le {m n : ℕ} : m < n ↔ m + 1 ≤ n := 
+lemma lt_iff_add_one_le {m n : ℕ} : m < n ↔ m + 1 ≤ n :=
 by rw succ_le_iff
 
 theorem of_le_succ {n m : ℕ} (H : n ≤ m.succ) : n ≤ m ∨ n = m.succ :=

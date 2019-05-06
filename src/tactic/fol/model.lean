@@ -1,4 +1,7 @@
-import .misc logic.function
+/- Models and variable assignments. -/
+
+import logic.function
+import tactic.fol.misc
 
 universe u
 

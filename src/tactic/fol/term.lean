@@ -1,4 +1,6 @@
-import .nat .model
+/- First-order atoms and terms. -/
+
+import tactic.fol.model
 
 universe u
 
