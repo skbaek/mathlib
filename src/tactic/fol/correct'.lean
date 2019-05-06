@@ -3,15 +3,211 @@ import .mat
 universe u
 variable {α : Type}
 
-local notation `&` k   := term.fnc k
+local notation `&` k   := term.sym k
 local notation a `&` b := term.app a b
 local notation a `#` k := term.vpp a k
 
+
 def goal : Type := cla × cla × mat
+
+def cla.inst (c d : cla) : Prop :=
+  ∃ σ : sub, c = cla.subst σ d
+
+def mat.inst (m n : mat) : Prop :=
+  ∀ c ∈ m, ∃ d ∈ n, ∃ k : nat, cla.inst c (list.rotate d k)
+
+open list
+
+def term.find_inst : sub → term → term → option sub
+| σ (& k)   (& m)   := if k = m then some σ else none
+| _ (& _)   (_ & _) := none
+| _ (& _)   (_ # _) := none
+| _ (_ & _) (& _)   := none
+| σ (r & s) (t & u) :=
+  term.find_inst σ r t >>=
+  λ x, term.find_inst x s u
+| σ (t & s) (r # k) :=
+  do σ' ← term.find_inst σ t r,
+     match σ'.get k with
+     | none     := some ((k, s) :: σ')
+     | (some u) := if s = u then some σ' else none
+     end
+| _ (_ # _) (& _)   := none
+| _ (_ # _) (_ & _) := none
+| σ (t # k) (s # m) :=
+  do σ' ← term.find_inst σ t s,
+     match σ'.get m with
+     | none     := if k = m then some σ' else none
+     | (some u) := none
+     end
+
+def cla.find_inst : sub → cla → cla → option sub
+| σ [] []       := some σ
+| _ [] (_ :: _) := none
+| _ (_ :: _) [] := none
+| σ ((b, t) :: C) ((c, s) :: D) :=
+  if b = c
+  then do σ' ← term.find_inst σ t s,
+          cla.find_inst σ' C D
+  else none
+
+lemma fam_exv_of_fam_exv_inst {m n : mat} :
+  mat.inst m n → m.fam_exv α → n.fam_exv α :=
+begin
+  rintros h0 h1 M,
+  rcases h1 M with ⟨v, c, h1, h2⟩,
+  rcases h0 c h1 with ⟨d, h3, k, σ, h5⟩,
+  rw [h5, cla.holds_subst] at h2,
+  refine ⟨vas.subst M v σ, d, h3, λ l h4, _⟩,
+  apply h2, rw list.mem_rotate, exact h4
+end
+
+instance attempt.inst (m n : mat) : attempt (mat.inst m n) :=
+begin
+  apply @list.attempt_ball _ _ (λ c, _),
+  apply @list.attempt_bex _ _ (λ d, _),
+  apply @list.attempt_ex_of_list _ _ (λ k, _) (list.range d.length),
+  cases (cla.find_inst [] c (rotate d k)) with σ,
+  { apply attempt.unknown },
+  by_cases h0 : (c = cla.subst σ (rotate d k)),
+  { left, refine ⟨σ, h0⟩ },
+  apply attempt.unknown
+end
+
+def attempt.repr (p : Prop) : attempt p → string
+| (attempt.shown h) := "Success"
+| _                 := "Fail"
+
+instance attempt.has_repr (p : Prop) : has_repr (attempt p) := ⟨attempt.repr p⟩
+
+def mat_size : mat → nat
+| []       := 0
+| (c :: m) := mat_size m + c.length + 1
+
+def blocked : mat → cla → bool
+| []              := λ _, ff
+| ([] :: _)       := λ _, tt
+| ((l :: c) :: m) := λ p,
+  have mat_size (c :: m) < mat_size ((l :: c) :: m) := nat.lt_succ_self _,
+  have mat_size m < mat_size ((l :: c) :: m) :=
+  nat.lt_of_le_of_lt (nat.le_add_right _ c.length)
+    (nat.lt_trans (nat.lt_succ_self _) (nat.lt_succ_self _)),
+  if blocked (c :: m) p
+  then if l.neg ∈ p
+       then tt
+       else blocked m (l :: p)
+  else false
+using_well_founded {
+  dec_tac := tactic.assumption,
+  rel_tac := λ _ _, `[exact ⟨measure mat_size, measure_wf mat_size⟩]
+}
+
+lemma holds_of_blocked (M : model α) (v : vas α) :
+  ∀ m : mat, ∀ p : cla, (∀ l ∈ p, ¬ lit.holds M v l) →
+  blocked m p = tt → m.holds M v
+| []              _ _  h1 := by cases h1
+| ([] :: _)       _ _  _  := ⟨_, or.inl rfl, list.ball_nil _⟩
+| ((l :: c) :: m) p h0 h2 :=
+  begin
+    cases h3 : (blocked (c :: m) p),
+    { simpa only [blocked, h3, bool.coe_sort_ff, if_false] using h2 },
+    by_cases h4 : l.neg ∈ p,
+    { have h5 : mat.holds M v (c :: m),
+      { apply holds_of_blocked _ _ h0, rw h3,  },
+      rcases h5 with ⟨d, h5 | h5, h6⟩,
+      { refine ⟨_, or.inl rfl, λ x h7, _⟩,
+        cases h7 with h7 h7,
+        { apply classical.by_contradiction,
+          have h8 := h0 _ h4,
+          simpa only [lit.holds_neg, h7] using h8 },
+        apply h6, rwa ← h5 at h7 },
+        refine ⟨d, or.inr h5, h6⟩ },
+    have h5 : blocked m (l :: p) = tt,
+    { simpa only [blocked, h3, h4, bool.to_bool_false,
+      if_true, bool.coe_sort_tt, if_false] using h2 },
+    cases (classical.em (l.holds M v)) with h6 h6,
+    { rcases holds_of_blocked (c :: m) p h0 h3 with ⟨d, h7 | h7, h8⟩,
+      { refine ⟨_, or.inl rfl, _⟩, rw ← h7,
+        apply (ball_cons (lit.holds M v) l d).elim_right ⟨h6, h8⟩ },
+      refine ⟨d, or.inr h7, h8⟩ },
+    have h7 : ∀ x ∈ (l :: p), ¬ lit.holds M v x,
+    { apply (ball_cons (λ y, ¬ lit.holds M v y) l p).elim_right ⟨h6, h0⟩ },
+    have h8 := holds_of_blocked m (l :: p) h7 h5,
+    apply (bex_cons _ _ _).elim_right (or.inr h8),
+  end
+
+lemma valid_of_blocked {m : mat} :
+  blocked m [] = tt → m.valid α :=
+by { intros h0 M v,
+     apply holds_of_blocked _ _ _ _ _ h0,
+     apply @ball_nil _ (λ x, ¬ lit.holds M v x) }
+
+
+
+#exit
+  then blocked (c :: m) p
+  else blocked m (l :: p)
+
+#exit
+
+
+#exit
+
+#exit
+
+
+#print axioms blocked
+
+#exit
+  have has_well_founded.r (⟨p, c :: m⟩ : psigma (λ _, mat)) ⟨p, (l :: c) :: m⟩,
+  { right,
+    apply (add_lt_add_iff_right m.sizeof).elim_right,
+    apply (add_lt_add_iff_left 1).elim_right,
+    apply lt_of_le_of_lt (nat.le_add_left _ (sizeof l)),
+
+
+  } ,
+
+#print axioms check
+     #exit
+lemma exv_of_holds_ext {M : model α} {v : vas α} {m x : mat} :
+  is_ext m x → x.holds M v → (∃ w : nat → α, m.holds M w) :=
+begin
+  intros h1 h2,
+  rcases h2 with ⟨c, h2, h3⟩,
+  rcases (h1 _ h2) with ⟨d, h4, σ, h5⟩,
+  refine ⟨v.subst M σ, d, h4, _⟩,
+  rw [←cla.holds_subst, ←h5], exact h3
+end
+
+
+#exit
+lemma cla.find_inst_is_some (c d : cla) :
+  (cla.find_inst [] c d).is_some ↔ cla.inst c d :=  sorry
+
+#exit
+instance cla.decidable_inst (c d : cla) :
+  decidable (cla.inst c d) :=
+begin
+  rw ← cla.find_inst_is_some,
+  cases (cla.find_inst [] c d),
+  { left, rintro ⟨_⟩ },
+  right, simp only [bool.coe_sort_tt, option.is_some_some],
+end
+
+
+
+
+#exit
+#exit
+@list.decidable_ball _ _
+  (λ x, @list.decidable_bex _ _ _ _) _
+
+
+#exit
+
 def ext_goal : Type := cla × cla × mat × mat
 
-def is_ext (m x : mat) : Prop :=
-∀ c ∈ x, ∃ d ∈ m, ∃ σ : sub, c = cla.subst σ d
 
 lemma is_ext_of_subset_of_is_ext {m n x : mat} :
   m ⊆ n → is_ext m x → is_ext n x :=

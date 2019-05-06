@@ -1,95 +1,44 @@
-import .correct .search
+import .correct .search .arifix system.io
 
 variables {α : Type} [inhabited α]
 
 open tactic
 
-/- Return (⌜π : ext_valid ⟦dx⟧ (P, C, M)⌝, rs'),
-   where rs' is the list of unused rules. -/
-meta def prove_ext_valid (dx : expr) :
-  cla → cla → mat → list rule → tactic (expr × list rule)
-| p [] m rs :=
-  return (`(@close_correct %%dx %%`(p) %%`(m)), rs)
-| p (l :: c) m (rule.red i :: rs) :=
-  match p.rotate i with
-  | []        := failed
-  | (n :: p') :=
-    do (πx, rs') ← prove_ext_valid (n :: p') c m rs,
-       ρx ← to_expr ``(rot_path_correct %%`(i) (red_correct (eq.refl (lit.neg %%`(l))) %%πx)),
-       return (ρx, rs)
-  end
-| p (l :: c) m (rule.ext j i σx :: rs) :=
-  match m.rotate j with
-  | [] := failed
-  | (d :: m') :=
-    match d.rotate i with
-    | [] := failed
-    | (n :: d') :=
-      if σx = []
-      then do (πx, rs') ← prove_ext_valid p c ((n :: d') :: m') rs,
-              (ρx, rs'') ← prove_ext_valid (l :: p) d' m' rs',
-              τx ← to_expr
-                   ``(rot_mat_correct %%`(j)
-                       (rot_cla_correct %%`(i)
-                         (ext_correct (eq.refl (lit.neg %%`(l))) %%πx %%ρx))),
-              return (τx, rs'')
-      else do σ ← subx.eval σx,
-              (πx, rs') ← prove_ext_valid p c ((n :: d') :: m') rs,
-              (ρx, rs'') ← prove_ext_valid (l :: p) (cla.subst σ d') ((n :: d') :: m') rs',
-              τx ← to_expr
-                   ``(@rot_mat_correct %%dx %%`(p) (%%`(l) :: %%`(c)) %%`(m) %%`(j)
-                       (rot_cla_correct %%`(i)
-                         (ext_copy_correct %%`(σ)
-                         (dec_trivial) %%πx %%ρx))),
-              return (τx, rs'')
-    end
-  end
-| _ _ _ [] := fail "Remaining goals"
+axiom any (p : Prop) : p
 
-/- Return ⌜π : mat.fam_exv ⟦dx⟧ m⌝. -/
-meta def prove_fam_exv (dx : expr) (m : mat) : list rule → tactic expr
-| (rule.ext j _ [] :: rs) :=
-  match m.rotate j with
-  | []        := failed
-  | (c :: m') :=
-    do (πx, _) ← prove_ext_valid dx [] c m' rs,
-       to_expr ``(@rot_mat_correct' %%dx %%`(m) %%`(j) (start_correct %%πx))
-  end
-| (rule.ext j _ σx :: rs) :=
-  match m.rotate j with
-  | []        := failed
-  | (c :: m') :=
-    do σ ← subx.eval σx,
-       (πx, _) ← prove_ext_valid dx [] (c.subst σ) (c :: m') rs,
-       to_expr ``(@rot_mat_correct' %%dx %%`(m) %%`(j)
-         (@start_copy_correct %%dx %%`(c) %%`(m') %%`(σ) %%πx))
-  end
-| _ := fail "Proof must begin with ext"
+meta def rulex.eval : rulex → tactic rule
+| (rulex.red k)      := return (rule.red k)
+| (rulex.ext j i σx) :=
+  do σ ← σx.eval, return (rule.ext j i σ)
 
-axiom any (P : Prop) : P
+meta def rulex.ground : rulex → tactic rulex
+| (rulex.red k)      := return (rulex.red k)
+| (rulex.ext j i σx) :=
+  do σx' ← subx.ground σx, return (rulex.ext j i σx')
 
-/- Return ⌜π : holds (model.default ⟦dx⟧) p⌝ . -/
+meta def get_ext (s : string) : tactic string :=
+unsafe_run_io $ io.cmd {
+  cmd  := "swipl",
+  args := ["leancop.pl", s],
+  /- Change this parameter to location of leancop.pl-/
+  cwd  := "/home/sk/Projects/mathlib/src/tactic/fol"
+}
+
+-- meta def foo : tactic unit := echo "Hello there" >>= trace
+-- run_cmd foo
+
+/- Return ⌜π : p.holds (model.default ⟦dx⟧)⌝ . -/
 meta def prove_holds (dx ix : expr) (p : form₂) : tactic expr :=
-do rs ← derive (normalize p),
-   x ← prove_fam_exv dx (normalize p) rs,
-   to_expr ``(@holds_of_fam_exv_normalize %%dx %%ix %%`(p) dec_trivial %%x)
+do trace (mat.write $ normalize p),
+   get_ext (mat.write $ normalize p) >>= trace,
+   failed
+-- do rxs ← derive (normalize p),
+--   rxs' ← monad.mapm rulex.ground rxs,
+--   rs ← monad.mapm rulex.eval rxs',
+--   to_expr ``(@holds_of_fam_exv_normalize %%dx %%ix %%`(p) dec_trivial
+--     (@check_imp %%dx %%ix (normalize %%`(p)) %%`(rs) trivial))
 
-#exit
-def matrixify : form → mat :=
-dnf ∘ exist_open ∘ pnf ∘ skolemize
-
-lemma univ_close_of_fam_exv_matrixify (p : form) :
-  closed p → (matrixify p).fam_exv α → univ_close α p :=
-λ h0 h1,
-( univ_close_of_fam_fav $
-  fam_fav_of_fam_fav_skolemize $
-  fam_fav_of_fam_fav_pnf $
-  fam_fav_of_closed_of_fam_exv_exist_open _ $
-  fam_exv_of_dnf_fam_exv sorry h1)
-
-/- Return ⌜π : p.univ_close ⟦dx⟧⌝ . -/
-meta def prove_univ_close (dx ix : expr) (p : form) : tactic expr :=
-do x ← to_expr ``(any (closed %%`(p))),
-   rs ← derive (matrixify p),
-   y ← prove_fam_exv dx (matrixify p) rs,
-   return `(@univ_close_of_fam_exv_matrixify %%dx %%ix %%`(p) %%x %%y)
+/- Return ⌜π : arifix (model.default ⟦dx⟧) p⌝ . -/
+meta def prove_arifix (dx ix : expr) (p : form₂) : tactic expr :=
+do πx ← prove_holds dx ix p,
+   to_expr ``(@arifix_of_holds %%dx %%ix _ %%`(p) dec_trivial %%πx)

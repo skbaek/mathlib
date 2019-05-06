@@ -32,6 +32,8 @@ def model.default (α : Type u) [inhabited α] : model α := λ _, value.default
 
 @[reducible] def vas (α : Type u) : Type u := nat → α
 
+def vas.default (α : Type u) [inhabited α] : vas α := λ _, default α
+
 lemma assign_app_evaluate_denote (M : model α) (v w : value α) :
   (M ₀↦ v ⬝ wᵈₑ) = (M ₀↦ v ⬝ w) :=
 by ext k as; cases k; refl

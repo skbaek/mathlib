@@ -1,4 +1,4 @@
-import .model .misc tactic.interactive
+import .model .misc tactic.interactive .nat
 
 universe u
 
@@ -17,6 +17,12 @@ local notation `#`     := term₂.var
 local notation a `&` b := term₂.app a b
 
 namespace term₂
+
+def repr : term₂ → string
+| (# k)   := "X" ++ k.to_subs
+| (t & s) := "(" ++ t.repr ++ " " ++ s.repr ++ ")"
+
+instance has_repr : has_repr term₂ := ⟨repr⟩
 
 def incr_ge (k : nat) : term₂ → term₂
 | (# m)   := if k ≤ m then # (m + 1) else # m

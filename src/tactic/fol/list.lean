@@ -1,4 +1,4 @@
-import data.list.basic
+import data.list.basic .logic .attempt
 
 universe u
 
@@ -13,10 +13,17 @@ foldl list.union [] ll
 
 notation `⋃` := gen_union
 
+--def write_core (f : α → string) : list α → string
+--| []        := ""
+--| (a :: as) := " " ++ f a ++ write_core as
+
+def write (f : α → string) (s : string) : list α → string
+| []        := ""
+| (a :: as) := f a ++ s ++ write as
+
 def max [has_zero α] [decidable_linear_order α] : list α → α
 | []      := 0
 | (a::as) := _root_.max a as.max
-
 
 def seteq (l1 l2 : list α) : Prop := l1 ⊆ l2 ∧ l2 ⊆ l1
 
@@ -58,7 +65,84 @@ begin
   apply mem_append_right _ h2
 end
 
-#exit
+lemma exists_mem_iff_exists_mem_of_seteq
+  {α : Type u} (p : α → Prop) {l1 l2 : list α} :
+  l1 ⊆⊇ l2 → ((∃ x ∈ l1, p x) ↔ (∃ x ∈ l2, p x)) :=
+begin
+  intro h0,
+  apply exists_iff_exists,
+  intro a, constructor; intro h1;
+  cases h1 with h1 h2; refine ⟨_, h2⟩,
+  { apply h0.left h1 },
+  apply h0.right h1
+end
+
+lemma rotate_rotate_eq_self (k : nat) (l : list α) :
+  (l.rotate k).rotate (l.length - (k % l.length)) = l :=
+begin
+  cases l with a l,
+  { simp only [rotate_nil] },
+  have h0 := @nat.add_sub_assoc (a :: l).length (k % (a :: l).length)
+    (le_of_lt $ nat.mod_lt _ _) k,
+  have h1 := @nat.add_sub_assoc k (k % (a :: l).length) (nat.mod_le _ _),
+  rw [rotate_rotate, ← h0, add_comm, h1, ← rotate_rotate,
+   rotate_length],
+  have h2 : k - k % length (a :: l) =
+       (a :: l).length * (k / (a :: l).length),
+  { apply @eq.trans _ _ (k % length (a :: l) + length (a :: l) *
+      (k / length (a :: l)) - k % length (a :: l)),
+    { rw nat.mod_add_div k (a :: l).length },
+    rw [add_comm, nat.add_sub_cancel] },
+  rw [h2, rotate_length_mul],
+  apply nat.zero_lt_succ
+end
+
+instance nat.decidable_exists_lt (p : nat → Prop) [decidable_pred p] :
+  ∀ k : nat, decidable (∃ m < k, p m)
+| 0       :=
+  by { apply decidable.is_false,
+       rintro ⟨m, ⟨⟨h⟩, _⟩⟩ }
+| (k + 1) :=
+  begin
+    cases (nat.decidable_exists_lt k) with h0 h0,
+    { by_cases h1 : p k,
+      { right, refine ⟨k, nat.lt_succ_self _, h1⟩ },
+      left, rintro ⟨n, h2, h3⟩,
+      rw [nat.lt_succ_iff, le_iff_eq_or_lt] at h2,
+      cases h2,
+      { apply h1, rwa [h2] at h3 },
+      apply h0, refine ⟨n, h2, h3⟩ },
+    apply decidable.is_true,
+    rcases h0 with ⟨m, h0, h1⟩,
+    refine ⟨m, lt_trans h0 (nat.lt_succ_self _), h1⟩
+  end
+
+instance nat.decidable_exists_le
+  (k : nat) (p : nat → Prop) [decidable_pred p] :
+  decidable (∃ m ≤ k, p m) :=
+begin
+  apply decidable_of_iff (∃ m < k + 1, p m),
+  apply (exists_iff_exists $ λ k, _),
+  rw [nat.lt_succ_iff],
+end
+
+lemma exists_lt_length_rot (l : list α) (p : list α → Prop) :
+  (∃ k ≤ l.length, p (l.rotate k)) ↔ (∃ k, p (l.rotate k)) :=
+begin
+  constructor; rintro ⟨k, h0⟩,
+  { cases h0 with _ h0, refine ⟨k, h0⟩ },
+  cases l with a l,
+  { refine ⟨0, le_refl _, _⟩,
+    rwa [rotate_nil] at h0 },
+  rw ← rotate_mod at h0,
+  refine ⟨k % (a :: l).length, _, h0⟩,
+  apply (le_of_lt $ nat.mod_lt _ $ nat.zero_lt_succ _)
+end
+
+instance decidable_exists_rot
+  (l : list α) (p : list α → Prop) [decidable_pred p] :
+  decidable (∃ k : nat, p $ l.rotate k) :=
+decidable_of_iff (∃ k ≤ l.length, p (l.rotate k)) (exists_lt_length_rot _ _)
 
 lemma map_eq_map_of_forall_mem_eq {f g : α → β} :
 ∀ {as}, (∀ a ∈ as, f a = g a) → map f as = map g as
@@ -70,8 +154,6 @@ lemma map_eq_map_of_forall_mem_eq {f g : α → β} :
     apply map_eq_map_of_forall_mem_eq,
     apply forall_mem_of_forall_mem_cons h1
   end
-
-
 
 def except : nat → list α → list α
 | 0     []      := []
@@ -88,11 +170,48 @@ lemma except_subset_self :
   by { cases h, left, exact h,
        right, apply except_subset_self h }
 
-
 lemma rotate_subset {k : nat} : as.rotate k ⊆ as :=
 λ x, mem_rotate.elim_left
 
+instance attempt_ball (p : α → Prop) [ha : attempt_pred p] :
+  ∀ l : list α, attempt (∀ x ∈ l, p x)
+| []        := attempt.shown (λ _ h, by cases h)
+| (a :: as) :=
+  begin
+    cases attempt_ball as with h0,
+    { cases ha a with h1,
+      { left,
+        apply (ball_cons p a as).elim_right,
+        refine ⟨h1, h0⟩ },
+      apply attempt.unknown },
+    apply attempt.unknown
+  end
 
+--#exit
+--instance attempt_ex (p : α → Prop) [ha : attempt_pred p] (a : α) : attempt (∃ x, p x) :=
+--attempt.rec_on (ha a) (λ h, attempt.shown ⟨a, h⟩) (attempt.unknown _)
+
+instance attempt_bex (p : α → Prop) [ha : attempt_pred p] :
+  ∀ l : list α, attempt (∃ x ∈ l, p x)
+| []        := attempt.unknown _
+| (a :: as) :=
+  begin
+    cases attempt_bex as with h0,
+    { left, rcases h0 with ⟨x, h1, h2⟩,
+      refine ⟨x, or.inr h1, h2⟩ },
+    cases ha a with h0,
+    { left, refine ⟨a, or.inl rfl, h0⟩ },
+    apply attempt.unknown
+  end
+
+def attempt_ex_of_list (p : α → Prop) [ha : attempt_pred p] (as : list α) :
+  attempt (∃ x, p x) :=
+begin
+  cases (list.attempt_bex p as) with h0,
+  { left, rcases h0 with ⟨a, _, h1⟩,
+    refine ⟨a, h1⟩ },
+  apply attempt.unknown
+end
 
 #exit
 

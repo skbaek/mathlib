@@ -40,12 +40,26 @@ meta def subst_symb (y : expr) : nat → expr → expr
 | k (pi n b tx x)  := pi n b tx (subst_symb (k+1) x)
 | k x := if y = x then var k else x
 
+meta def abst (dx : expr) : expr → tactic expr
+| x :=
+  commit (get_symb dx x)
+    (return x)
+    (λ y, abst (pi name.anonymous binder_info.default dx (subst_symb y 0 x)))
+
+    #exit
+
+    abst_aux (k + 1) (subst_symb y k x))
+
+    #exit
 meta def fresh_idx : expr → nat
 | (app x y)      := max (fresh_idx x) (fresh_idx y)
 | (lam n b tx y) := fresh_idx y - 1
 | (pi n b tx y)  := fresh_idx y - 1
 | _              := 0
 
+
+
+#exit
 -- todo : Is commit necessary here?
 meta def abst_aux (dx : expr) : nat → expr → tactic expr
 | k x :=

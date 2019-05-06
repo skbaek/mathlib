@@ -51,6 +51,10 @@ by { cases l with b a, cases b;
      simp only [holds, subst, vas.subst,
      list.map_map, term.val_subst] }
 
+def write : lit → string
+| (tt, t) := t.write
+| (ff, t) := "- " ++ t.write
+
 end lit
 
 namespace cla
@@ -78,6 +82,9 @@ begin
     apply h1 _ h3 }
 end
 
+def write : cla → string :=
+list.write lit.write " "
+
 end cla
 
 namespace mat
@@ -85,12 +92,18 @@ namespace mat
 def holds (M : model α) (v : nat → α) (m : mat) : Prop :=
 ∃ c ∈ m, cla.holds M v c
 
+def valid (α : Type u) (m : mat) : Prop := 
+  ∀ M : model α, ∀ v : vas α, m.holds M v
+
 lemma holds_cons {M : model α} {v : nat → α} (c : cla) (m : mat) :
 mat.holds M v (c :: m) ↔ (c.holds M v ∨ m.holds M v) :=
 by simp only [mat.holds, list.exists_mem_cons_iff]
 
 def fam_exv (α : Type u) (m : mat) : Prop :=
 ∀ M : model α, ∃ v : nat → α, m.holds M v
+
+def write : mat → string :=
+list.write cla.write "| "
 
 end mat
 
@@ -136,7 +149,7 @@ dnf ∘ form₂.folize 0 ∘ QDFy ff
 
 lemma holds_of_fam_exv_normalize
   [inhabited α] (p : form₂)  :
-  foq tt p → (normalize p).fam_exv α → holds (model.default α) p :=
+  foq tt p → (normalize p).fam_exv α → p.holds (model.default α) :=
 begin
   intros h0 h1,
   have h2 := fam_exv_of_dnf_fam_exv h1,

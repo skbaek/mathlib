@@ -28,6 +28,17 @@ local notation `∀*`            := form₂.qua ff
 
 namespace form₂
 
+def repr : form₂ → string
+| ⟪tt, t⟫  := t.repr
+| ⟪ff, t⟫  := "¬" ++ t.repr
+| (p ∨* q) := "(" ++ p.repr ++ " ∨ " ++ q.repr ++ ")"
+| (p ∧* q) := "(" ++ p.repr ++ " ∧ " ++ q.repr ++ ")"
+| (∀* p)   := "(∀ " ++ p.repr ++ ")"
+| (∃* p)   := "(∃ " ++ p.repr ++ ")"
+
+instance has_repr : has_repr form₂ := ⟨repr⟩
+meta instance has_to_format : has_to_format form₂ := ⟨λ x, repr x⟩
+
 def holds : model α → form₂ → Prop
 | M ⟪tt, a⟫  :=   (a.val M []).snd
 | M ⟪ff, a⟫  := ¬ (a.val M []).snd
@@ -264,7 +275,7 @@ def F : form₂ → Prop
 | (form₂.qua b p)   := false
 
 def N (b : bool) : form₂ → Prop
-| ⟪_, _⟫           := true
+| ⟪_, _⟫            := true
 | (form₂.bin _ p q) := N p ∧ N q
 | (form₂.qua c p)   := b ≠ c ∧ N p
 

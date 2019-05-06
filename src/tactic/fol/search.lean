@@ -10,18 +10,47 @@ local notation  t `#` k := term.vpp t k
 meta def clax : Type := list expr
 meta def subx : Type := list (nat × expr)
 
+meta def subx.ground_aux : (nat × expr) → tactic (nat × expr)
+| (k, x) :=
+  do x' ← tactic.instantiate_mvars x,
+     return (k, x')
+
+meta def subx.ground : subx → tactic subx :=
+monad.mapm subx.ground_aux
+
+meta def mapx.to_format : (nat × expr) → format
+| ⟨k, x⟩ := k.repr ++ " ↦ " ++ to_fmt x
+
+meta instance clax.has_to_format : has_to_format clax :=
+⟨@list.to_format _  ⟨to_fmt⟩⟩
+
+meta instance subx.has_to_format : has_to_format subx :=
+⟨@list.to_format _  ⟨mapx.to_format⟩⟩
+
+meta def termx.eval : expr → tactic term
+| `(term.sym %%kx) :=
+  do k ← tactic.eval_expr nat kx,
+     return (term.sym k)
+| `(term.app %%tx %%sx) :=
+  do t ← termx.eval tx,
+     s ← termx.eval sx,
+     return (term.app t s)
+| `(term.vpp %%tx %%kx) :=
+  do k ← tactic.eval_expr nat kx,
+     t ← termx.eval tx,
+     return (term.vpp t k)
+| (expr.mvar _ _ _) := return (term.sym 0)
+| _ := tactic.failed
+
 meta def subx.eval : subx → tactic sub
 | []             := return []
 | ((k, x) :: σx) :=
-  do a ← tactic.eval_expr term x,
+  do a ← termx.eval x,
      σ ← subx.eval σx,
      return ((k, a) :: σ)
 
 @[reducible] meta def sgoal : Type := clax × clax × mat
 
-meta inductive rule : Type
-| red : nat → rule
-| ext : nat → nat → subx → rule
 
 meta def sgoal.to_format : sgoal → format
 | (Px, Cx, M) :=
@@ -33,24 +62,28 @@ meta def sgoal.to_format : sgoal → format
 
 meta instance sgoal.has_to_format : has_to_format sgoal := ⟨sgoal.to_format⟩
 
-meta def rule.to_format : rule → format
-| (rule.red k)     := "Red " ++ k.repr
-| (rule.ext j i σ) := "Ext " ++ j.repr ++ " " ++ i.repr ++ " _"
+meta inductive rulex : Type
+| red : nat → rulex
+| ext : nat → nat → subx → rulex
 
-meta instance rule.has_to_format : has_to_format rule := ⟨rule.to_format⟩
+meta def rulex.to_format : rulex → format
+| (rulex.red k)     := "Red " ++ k.repr
+| (rulex.ext j i σ) := "Ext " ++ j.repr ++ " " ++ i.repr ++ " " ++ to_fmt σ
+
+meta instance rulex.has_to_format : has_to_format rulex := ⟨rulex.to_format⟩
 
 meta structure search_state :=
 (max : nat)
 (lim : nat)
 (sgoals : list sgoal)
-(rules : list rule)
+(rulexs : list rulex)
 
 meta def search_state.to_format : search_state → format
 | ⟨m, l, gs, rs⟩ :=
   "Max : " ++ m.repr ++ "\n" ++
   "Lim : " ++ l.repr ++ "\n" ++
   "S-Goals : " ++ gs.to_format ++ "\n" ++
-  "Rules : " ++ rs.to_format ++ "\n"
+  "rulexs : " ++ rs.to_format ++ "\n"
 
 meta instance search_state.has_to_format : has_to_format search_state :=
 ⟨search_state.to_format⟩
@@ -70,28 +103,25 @@ namespace search
 meta def get_max : search nat := search_state.max <$> get
 meta def get_lim : search nat := search_state.lim <$> get
 meta def get_sgoals : search (list sgoal) := search_state.sgoals <$> get
-meta def get_rules : search (list rule) := search_state.rules <$> get
+meta def get_rulexs : search (list rulex) := search_state.rulexs <$> get
 
 meta def set_max (m : nat) : search unit := modify $ λ s, {max := m, .. s}
 meta def set_lim (l : nat) : search unit := (modify $ λ s, {lim := l, .. s})
 meta def set_goals (gs : list sgoal) : search unit := modify $ λ s, {sgoals := gs, .. s}
-meta def set_rules (rs : list rule) : search unit := modify $ λ s, {rules := rs, .. s}
+meta def set_rulexs (rs : list rulex) : search unit := modify $ λ s, {rulexs := rs, .. s}
 
 meta def pop_goal : search sgoal :=
 do (g::gs) ← get_sgoals,
    set_goals gs,
    return g
 
-meta def print [has_to_tactic_format α] (a : α) : search unit :=
-state_t.lift (tactic.trace a)
-
 meta def push_goal (g : sgoal) : search unit :=
 do gs ← get_sgoals,
    set_goals (g::gs)
 
-meta def push_rule (r : rule) : search unit :=
-do rs ← get_rules,
-   set_rules (r::rs)
+meta def push_rulex (r : rulex) : search unit :=
+do rs ← get_rulexs,
+   set_rulexs (r::rs)
 
 meta def backtrack (α : Type) : Type := (nat → search α) × nat
 
@@ -138,6 +168,28 @@ meta def termx.mk (σ : subx) : term → expr
 meta def litx.mk (σ : subx) : lit → expr
 | ⟨b, a⟩ := `(@prod.mk bool term %%`(b) %%(termx.mk σ a))
 
+meta def report (s : string) : search unit :=
+do trace s,
+   gs ← get_sgoals,
+   match gs with
+   | [] := trace "No goals"
+   | (⟨P, C, M⟩ :: gs') :=
+     do trace gs.length,
+        trace " goals, ",
+        trace C.length,
+        trace " lits in top goal clause"
+   end
+
+meta def top_cla_count (s : string) : search unit :=
+do trace s,
+   ( do (⟨_, C, _⟩ :: _) ← get_sgoals,
+        trace C.length ) <|> (trace "No goals")
+
+meta def goal_count (s : string) : search unit :=
+do trace s,
+   gs ← get_sgoals,
+   trace gs.length
+
 meta def pick_cla_aux (M : mat) (k : nat) : search unit :=
 match M.rotate k with
 | []        := failed
@@ -145,7 +197,7 @@ match M.rotate k with
   if cla.is_pos C
   then do σ ← state_t.lift (subx.mk $ C.vdxs),
           push_goal ([], C.map (litx.mk σ), if σ = [] then M' else M),
-          push_rule (rule.ext k 0 σ)
+          push_rulex (rulex.ext k 0 σ)
   else failed
 end
 
@@ -168,7 +220,7 @@ match P.rotate k with
 | (N :: P') :=
   do comp_unify L N,
      push_goal (P,C,M),
-     push_rule (rule.red k)
+     push_rulex (rulex.red k)
 end
 
 meta def reduce : bsearch unit :=
@@ -196,7 +248,7 @@ match M.rotate j with
        comp_unify Lx (litx.mk σ N),
        push_goal (Lx :: Px, D'.map (litx.mk σ), if σ = [] then M' else M),
        push_goal (Px, Cx, M),
-       push_rule (rule.ext j i σ)
+       push_rulex (rulex.ext j i σ)
   end
 end
 
@@ -212,6 +264,8 @@ meta def extend : bsearch unit :=
 meta def close : search unit :=
 do ⟨_, [], _⟩ ← pop_goal, skip
 
+
+
 meta def finish : search unit :=
 do gs ← get_sgoals,
    if gs = [] then skip else failed
@@ -219,8 +273,8 @@ do gs ← get_sgoals,
 local attribute [inline] state_t.orelse
 
 meta def loop : search unit :=
-((reduce >>> loop) <|> (extend >>> loop) <|>
-  (close >> loop) <|> finish)
+( (reduce >>> loop) <|> (extend >>> loop) <|>
+  (close >> loop)   <|> finish )
 
 meta def main : search unit :=
 pick_lim >>> pick_cla >>> loop
@@ -231,12 +285,12 @@ return ⟨m, l, [⟨[], [], M⟩], []⟩
 
 end search
 
-meta def derive (M : mat) : tactic (list rule) :=
-(list.reverse ∘ search_state.rules) <$> prod.snd <$>
+meta def derive (M : mat) : tactic (list rulex) :=
+(list.reverse ∘ search_state.rulexs) <$> prod.snd <$>
   (search.mk_search_state M >>= @state_t.run search_state tactic unit search.main)
 
 def socrates : mat :=
-  [[⟨tt, (& 0) & (& 0)⟩,   ⟨tt, (& 1) & (& 1)⟩],
-   [⟨ff, (& 0) & (& 0)⟩], [⟨ff, (& 1) & (& 1)⟩]]
+  [[⟨tt, (& 0) & (& 0)⟩, ⟨tt, (& 0) & (& 0)⟩],
+   [⟨ff, (& 0) & (& 0)⟩, ⟨ff, (& 0) & (& 0)⟩]]
 
 run_cmd derive socrates >>= tactic.trace

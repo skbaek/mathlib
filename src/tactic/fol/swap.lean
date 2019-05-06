@@ -295,8 +295,11 @@ lemma foq_swap (b : bool) :
 def swap_many (ae : bool) : form₂ → form₂
 | (form₂.qua b p) :=
   have form₂.size_of (p.swap 0) < form₂.size_of (form₂.qua b p),
-  { unfold form₂.swap, rw form₂.size_of_subst,
-    simp only [form₂.size_of, nat.lt_succ_self, add_comm] },
+  { unfold form₂.swap,
+    have h0 : form₂.size_of p < form₂.size_of (form₂.qua b p),
+    { unfold form₂.size_of, apply nat.lt_succ_self },
+    have h1 := form₂.size_of_subst p (swap 0),
+    apply @eq.rec _ _ (λ x, x < form₂.size_of (form₂.qua b p)) h0 _ h1.symm },
   if ae = b
   then form₂.qua ae (swap_many $ p.swap 0)
   else form₂.qua (bnot ae) (form₂.qua b p)
@@ -320,7 +323,8 @@ lemma fov_swap_many (ae : bool) :
       have h2 : (p.swap 0).fov (k + 2) :=
       @form₂.fov_swap_of_ne (k + 2) 0 (zero_ne_succ _).symm
         (succ_ne_succ (zero_ne_succ _).symm) _ h0,
-    apply @fov_swap_many _ (k + 1) h2 },
+
+    apply @fov_swap_many _ (k + 1) h2, },
     rw if_neg h1, exact h0
   end
 
@@ -374,7 +378,7 @@ lemma swap_many_eqv (α : Type u) [inhabited α] (ae : bool) :
 def swap_all (ae : bool) : form₂ → form₂
 | ⟪b, a⟫           := ⟪b, a⟫
 | (form₂.bin b p q) :=
-  pull (some ae) b tt (swap_all p) (swap_all q)
+  pull (some ae) b (swap_all p) (swap_all q)
 | (form₂.qua b p)   :=
   if ae = b
   then form₂.qua ae (swap_all p)
@@ -428,7 +432,7 @@ lemma swap_all_eqv [inhabited α] {ae : bool} :
 | ⟪b, a⟫           h0 := eqv_refl _ _
 | (form₂.bin b p q) h0 :=
   eqv_trans
-    (pull_eqv ae b _ _ _)
+    (pull_eqv ae _ _ _)
     (bin_eqv_bin
       (swap_all_eqv h0.left)
       (swap_all_eqv h0.right))
@@ -446,9 +450,8 @@ lemma swap_all_eqv [inhabited α] {ae : bool} :
 end
 
 def prenexify : form₂ → form₂
-| ⟪b, a⟫           := ⟪b, a⟫
-| (form₂.bin b p q) :=
-  pull none b tt (prenexify p) (prenexify q)
+| ⟪b, a⟫            := ⟪b, a⟫
+| (form₂.bin b p q) := pull none b (prenexify p) (prenexify q)
 | (form₂.qua b p)   := form₂.qua b (prenexify p)
 
 lemma fov_prenexify :
@@ -471,10 +474,10 @@ lemma foq_prenexify (b : bool) :
 
 lemma prenexify_eqv [inhabited α] :
   ∀ p : form₂, prenexify p <==α==> p
-| ⟪b, a⟫           := eqv_refl _ _
+| ⟪b, a⟫            := eqv_refl _ _
 | (form₂.bin b p q) :=
   begin
-    apply eqv_trans (@pull_eqv α _ _ _ _ _ _),
+    apply eqv_trans (@pull_eqv α _ _ _ _ _),
     apply bin_eqv_bin;
     apply prenexify_eqv
   end
@@ -529,7 +532,9 @@ lemma QN_swap_all (b : bool) :
   ∀ p : form₂, (swap_all b p).QN b
 | ⟪_, a⟫           := trivial
 | (form₂.bin c p q) :=
-  by { unfold swap_all, apply QN_pull; apply QN_swap_all }
+  by { unfold swap_all,
+       apply QN_pull;
+       apply QN_swap_all }
 | (form₂.qua c p)   :=
   begin
     unfold swap_all,
@@ -547,7 +552,7 @@ lemma QF_prenexify {b : bool} :
   ∀ {p : form₂}, p.N b → (prenexify p).QF (bnot b)
 | (form₂.lit c a)   h0 := trivial
 | (form₂.bin c p q) h0 :=
-  by { cases h0,  apply QF_pull;
+  by { cases h0, apply QF_pull;
        apply QF_prenexify; assumption }
 | (form₂.qua c p)   h0 :=
   by { constructor,

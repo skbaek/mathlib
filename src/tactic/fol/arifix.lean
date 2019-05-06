@@ -105,11 +105,30 @@ lemma term₂.arity_eq_const_of_fov (k : nat) :
   end
 
 lemma form₂.arity_core_eq_const_of_fov :
-  ∀ (k : nat) (p : form₂), p.fov k → if_is_some ((=) (ff, 0)) (p.arity_core k)
+  ∀ (k : nat) (p : form₂), p.fov k →
+  if_is_some ((=) (ff, 0)) (p.arity_core k)
 | k ⟪b, t⟫ h0 := term₂.arity_eq_const_of_fov _ _ h0
+| k (form₂.bin b p q) h0 :=
+  begin
+    have hp := form₂.arity_core_eq_const_of_fov k p h0.left,
+    have hq := form₂.arity_core_eq_const_of_fov k q h0.right,
+    unfold form₂.arity_core,
+    cases (p.arity_core k) with x,
+    { rw [option.none_orelse], exact hq },
+    rw [option.some_orelse], exact hp
+  end
+| k (form₂.qua b p) h0 :=
+  form₂.arity_core_eq_const_of_fov (k + 1) _ h0
 
+lemma form₂.arity_eq_const_of_fov (k : nat) (p : form₂) :
+  p.fov k → p.arity k = (ff, 0) :=
+begin
+  intro h0, unfold form₂.arity,
+  have h1 := form₂.arity_core_eq_const_of_fov k p h0,
+  cases (p.arity_core k) with x, refl,
+  apply eq.symm, exact h1
+end
 
-#exit
 def arifix [inhabited α] : model α → form₂ → Prop
 | M ⟪tt, a⟫  :=   (a.val M []).snd
 | M ⟪ff, a⟫  := ¬ (a.val M []).snd
@@ -132,43 +151,14 @@ lemma arifix_of_holds [inhabited α] :
 | M (∃₂ p)   h0 h1 :=
   begin
     cases h1 with v h1,
-    have h2 := holds_iff_holds_of_eq_except,
-    unfold arifix,
-
+    have h2 := h0.left rfl,
+    have h3 : form₂.arity 0 p = (ff, 0),
+    { exact form₂.arity_eq_const_of_fov 0 p (h0.left rfl) },
+    have h4 : (M ₀↦ (nary.val (v ᵈ : nary α ff 0))) ⊨ p,
+    { apply (holds_iff_holds_of_eq_except p _ h2).elim_left h1,
+      refine ⟨_, rfl⟩,
+      { intros m hm, cases m,
+        { cases hm rfl }, refl } },
+    unfold arifix, rw h3,
+    refine ⟨(v []).fst, arifix_of_holds h0.right h4⟩
   end
-
-#exit
-
-#exit
-def univ_close_core (p : form) :
-  nat → model α → Prop
-| 0     M :=  p.arifix M (λ _, M.inhab)
-| (k+1) M :=
-  match p.symb_arity k with
-  | none   := ∀ u : unit, univ_close_core k M
-  | some (tt,m) :=
-    ∀ r : arity α Prop m, univ_close_core k
-    {M with rels  := (k ↦ r.app_list _root_.false) M.rels}
-  | some (ff,m) :=
-    ∀ f : arity α α m, univ_close_core k
-    {M with funs := (k ↦ f.app_list M.inhab) M.funs}
-  end
-
-lemma univ_close_core_of_fam_fav (p : form) (h1 : p.fam_fav α) :
-  ∀ (k : nat) (M : model α), univ_close_core p k M
-| 0 M     := by apply h1
-| (k+1) M :=
-  begin
-    unfold univ_close_core,
-    cases (p.symb_arity k) with bm,
-    { intro _, apply univ_close_core_of_fam_fav },
-    { cases bm with b m, cases b;
-      intro _; apply univ_close_core_of_fam_fav }
-  end
-
-def univ_close (α : Type) [h : inhabited α] (p : form) : Prop :=
-univ_close_core p p.fresh_sdx (model.default α)
-
-lemma univ_close_of_fam_fav [h : inhabited α] {p : form} :
-  p.fam_fav α → univ_close α p :=
-λ h1, univ_close_core_of_fam_fav _ h1 _ _

@@ -1,10 +1,12 @@
-import .abst .prove .logic
+import .abst .prove' .logic
 
 run_cmd mk_simp_attr `sugar
 attribute [sugar]
   -- logical constants
-  or_false false_or
-  and_true true_and
+  or_false  false_or
+  and_false false_and
+  or_true   true_or
+  and_true  true_and
   -- implication elimination
   classical.imp_iff_not_or
   classical.iff_iff_not_or_and_or_not
@@ -26,10 +28,10 @@ meta def get_domain_core : expr → tactic expr
 | `(%%p ↔ %%q) := get_domain_core p <|> get_domain_core q
 | (pi _ _ p q) := mcond (is_prop p) (get_domain_core p <|> get_domain_core q) (return p)
 | `(@Exists %%t _) := return t
-| _ := failed
+| _ := failed --return `(unit)
 
 meta def get_domain : tactic expr :=
-target >>= get_domain_core
+(target >>= get_domain_core) <|> return `(unit)
 
 local notation `#`     := term₂.var
 local notation t `&` s := term₂.app t s
@@ -71,35 +73,13 @@ meta def to_form : nat → expr → tactic form₂
   do a ← to_term k px,
      return ⟪tt, a⟫
 
-
-#exit
-meta def main : tactic unit :=
+meta def leancop : tactic unit :=
 do desugar,
    dx ← get_domain,
    ihx ← to_expr ``(inhabited),
    ix ← mk_instance (app ihx dx),
    x ← target >>= abst dx,
    p ← to_form 0 x,
-   y ← prove_univ_close dx ix p,
+   y ← prove_arifix dx ix p,
    apply y,
    skip
-
-example (P : nat → Prop) : ∀ x : nat, ∃ y : nat, P x ∨ ¬ P y :=
-begin
-  main,
-end
-
-#exit
-
-example (f g : nat → nat) : ¬ ∀ x : nat, ∃ y : nat, (g (x + 2) ≤ g (y + 2)) :=
-begin
-  main,
-end
-
-example (f g : nat → nat) : ∃ y : nat, (f y < y ∨ y ≤ g (y + 2)) :=
-by do
-  main,
-  `(form.fam_fav _ %%x) ← target,
-  eval_expr form x >>= trace,
-
-  skip

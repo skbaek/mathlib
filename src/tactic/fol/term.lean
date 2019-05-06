@@ -21,7 +21,14 @@ def repr_core : bool → term → string
 | s (term.app a b) := "(" ++ a.repr_core s ++ " " ++ b.repr_core ff ++ ")"
 | s (term.vpp a k) := "(" ++ a.repr_core s ++ " " ++ "X" ++ k.to_subs ++ ")"
 
+def write : term → string
+| (term.sym k)   := "S " ++ k.repr
+| (term.app t s) := "( " ++ t.write ++ " "   ++ s.write ++ " )"
+| (term.vpp t k) := "( " ++ t.write ++ " V " ++ k.repr  ++ " )"
+
 def repr : term → string := repr_core tt
+
+instance has_repr : has_repr term := ⟨repr⟩
 
 def vdxs : term → list nat
 | (term.sym _)   := []
