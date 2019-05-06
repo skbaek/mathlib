@@ -55,13 +55,13 @@ lemma fov_incr_ge :
     unfold term₂.incr_ge,
     by_cases h2 : m ≤ n,
     { rw if_pos h2,
-      apply not_iff_not_of_iff (nat.succ_eq_succ _ _) },
+      apply not_iff_not_of_iff (nat.succ_eq_succ_iff _ _) },
     rw if_neg h2,
     have h3 : n < k,
     { rw not_le at h2,
       exact lt_of_lt_of_le h2 h0 },
-    apply iff_of_left_of_right _ (ne_of_gt h3),
-    apply ne_of_gt (lt_trans h3 $ lt_succ_self _)
+    refine ⟨ λ _, ne_of_gt h3,
+             λ _, ne_of_gt (lt_trans h3 $ lt_succ_self _) ⟩
   end
 | k m (a & (# n)) h0 :=
   begin

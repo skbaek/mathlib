@@ -70,7 +70,7 @@ lemma exists_mem_iff_exists_mem_of_seteq
   l1 ⊆⊇ l2 → ((∃ x ∈ l1, p x) ↔ (∃ x ∈ l2, p x)) :=
 begin
   intro h0,
-  apply exists_iff_exists,
+  apply exists_congr,
   intro a, constructor; intro h1;
   cases h1 with h1 h2; refine ⟨_, h2⟩,
   { apply h0.left h1 },
@@ -122,7 +122,7 @@ instance nat.decidable_exists_le
   decidable (∃ m ≤ k, p m) :=
 begin
   apply decidable_of_iff (∃ m < k + 1, p m),
-  apply (exists_iff_exists $ λ k, _),
+  apply (exists_congr $ λ k, _),
   rw [nat.lt_succ_iff],
 end
 

@@ -1,4 +1,4 @@
-import .fov
+import tactic.fol.fov
 
 universe u
 
@@ -168,21 +168,6 @@ lemma foq_pull' (o : option bool) (a b : bool) :
     apply foq_pull' _ h1.right,
     apply foq_incr_ge h0,
   end
-
--- lemma foq_pull' (a b : bool) :
---   ∀ {p q : form₂}, foq a p → foq a q → foq a (pull' b p q)
--- | p ⟪b, t⟫            h0 h1 := ⟨h0, h1⟩
--- | p (form₂.bin b q r) h0 h1 := ⟨h0, h1⟩
--- | p (form₂.qua b q)   h0 h1 :=
---   begin
---     constructor,
---     { intro h2,
---       apply fov_pull' _ _ (h1.left h2),
---       apply form₂.fov_of_not_occ,
---       apply form₂.not_occ_incr_ge },
---     apply foq_pull' _ h1.right,
---     apply foq_incr_ge h0
---   end
 
 lemma foq_pull (o : option bool) (a b : bool) :
   ∀ {p q : form₂}, foq a p → foq a q → foq a (pull o b p q)

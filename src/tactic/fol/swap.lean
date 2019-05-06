@@ -1,4 +1,4 @@
-import .pull
+import tactic.fol.pull
 
 universe u
 
@@ -323,7 +323,6 @@ lemma fov_swap_many (ae : bool) :
       have h2 : (p.swap 0).fov (k + 2) :=
       @form₂.fov_swap_of_ne (k + 2) 0 (zero_ne_succ _).symm
         (succ_ne_succ (zero_ne_succ _).symm) _ h0,
-
     apply @fov_swap_many _ (k + 1) h2, },
     rw if_neg h1, exact h0
   end

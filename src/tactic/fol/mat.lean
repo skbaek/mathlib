@@ -92,14 +92,14 @@ namespace mat
 def holds (M : model α) (v : nat → α) (m : mat) : Prop :=
 ∃ c ∈ m, cla.holds M v c
 
-def valid (α : Type u) (m : mat) : Prop := 
+def valid (α : Type u) (m : mat) : Prop :=
   ∀ M : model α, ∀ v : vas α, m.holds M v
 
 lemma holds_cons {M : model α} {v : nat → α} (c : cla) (m : mat) :
 mat.holds M v (c :: m) ↔ (c.holds M v ∨ m.holds M v) :=
 by simp only [mat.holds, list.exists_mem_cons_iff]
 
-def fam_exv (α : Type u) (m : mat) : Prop :=
+def fmev (α : Type u) (m : mat) : Prop :=
 ∀ M : model α, ∃ v : nat → α, m.holds M v
 
 def write : mat → string :=
@@ -139,21 +139,21 @@ lemma holds_of_holds_dnf {M : model α} {v : nat → α} :
     assumption,
   end
 
-lemma fam_exv_of_dnf_fam_exv {p : form} :
-  (dnf p).fam_exv α → p.fam_exv α :=
+lemma fmev_of_dnf_fmev {p : form} :
+  (dnf p).fmev α → p.fmev α :=
 by { intros h1 M, cases h1 M with v h1,
      refine ⟨v, holds_of_holds_dnf p h1⟩ }
 
 def normalize : form₂ → mat :=
 dnf ∘ form₂.folize 0 ∘ QDFy ff
 
-lemma holds_of_fam_exv_normalize
+lemma holds_of_fmev_normalize
   [inhabited α] (p : form₂)  :
-  foq tt p → (normalize p).fam_exv α → p.holds (model.default α) :=
+  foq tt p → (normalize p).fmev α → p.holds (model.default α) :=
 begin
   intros h0 h1,
-  have h2 := fam_exv_of_dnf_fam_exv h1,
-  have h3 := fam_of_fam_exv_folize _
+  have h2 := fmev_of_dnf_fmev h1,
+  have h3 := fam_of_fmev_folize _
     (foq_prenexify _ $ foq_swap_all _ h0)
     (QDF_QDFy _ _) h2 (model.default α),
   rwa [prenexify_eqv _ (model.default α),

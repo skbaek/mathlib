@@ -212,21 +212,21 @@ intros M h0 h1 h2 h3,
   end
 | (form₂.qua ff p) k := λ _ _  h, by cases h.left
 
-lemma fam_of_fam_exv_folize_zero :
+lemma fam_of_fmev_folize_zero :
   ∀ {p : form₂}, foq tt p → p.QF tt →
-  (p.folize 0).fam_exv α → fam α p :=
+  (p.folize 0).fmev α → fam α p :=
 λ p h0 h1 h2 M, @holds_exs_of_exv_folize
   α p 0 M h0 h1 forall_lt_zero (h2 M)
 
-lemma fam_of_fam_exv_folize :
+lemma fam_of_fmev_folize :
   ∀ p : form₂, foq tt p → p.QDF ff →
-  (p.folize 0).fam_exv α → fam α p
-| (form₂.lit b a)   := fam_of_fam_exv_folize_zero
-| (form₂.bin b p q) := fam_of_fam_exv_folize_zero
+  (p.folize 0).fmev α → fam α p
+| (form₂.lit b a)   := fam_of_fmev_folize_zero
+| (form₂.bin b p q) := fam_of_fmev_folize_zero
 | (form₂.qua tt p)  :=
   by { intros h0 h1 h2,
-       apply fam_of_fam_exv_folize_zero h0 _ h2,
+       apply fam_of_fmev_folize_zero h0 _ h2,
        refine ⟨rfl, h1.right (λ h3, by cases h3)⟩ }
 | (form₂.qua ff p)  :=
   λ h0 h1 h2, (fam_fa _ _).elim_right
-    (fam_of_fam_exv_folize p h0.right (h1.left rfl) h2)
+    (fam_of_fmev_folize p h0.right (h1.left rfl) h2)

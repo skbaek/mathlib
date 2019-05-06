@@ -1,4 +1,4 @@
-import .model .misc tactic.interactive .nat
+import .model .misc .nat
 
 universe u
 

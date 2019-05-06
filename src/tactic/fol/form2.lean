@@ -155,8 +155,8 @@ lemma holds_qua_iff_holds_qua {M N : model α} {p q : form₂} {b : bool} :
   (M ⊨ form₂.qua b p ↔ N ⊨ form₂.qua b q) :=
 begin
   intro h0, cases b,
-  apply forall_iff_forall h0,
-  apply exists_iff_exists h0
+  apply forall_congr h0,
+  apply exists_congr h0
 end
 
 lemma qua_eqv_qua {p q : form₂} {b : bool} :
@@ -187,14 +187,14 @@ lemma holds_neg : ∀ {M : model α}, ∀ {p : form₂}, M ⊨ p.neg ↔ ¬ M �
   begin
     unfold form₂.holds,
     rw @not_forall _ _ (classical.dec _) (classical.dec_pred _),
-    apply exists_iff_exists,
+    apply exists_congr,
     intro v, apply holds_neg
   end
 | M (∃* p)   :=
   begin
     unfold form₂.holds,
     rw @not_exists,
-    apply forall_iff_forall,
+    apply forall_congr,
     intro v, apply holds_neg
   end
 
@@ -237,7 +237,7 @@ lemma neg_subst :
 lemma neg_eqv_neg (p q : form₂) :
   (p.neg <==α==> q.neg) ↔ (p <==α==> q) :=
 begin
-  apply forall_iff_forall, intro M,
+  apply forall_congr, intro M,
   rw [holds_neg, holds_neg, @not_iff_not _ _ _ _],
   repeat {apply classical.dec _}
 end
