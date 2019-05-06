@@ -5,6 +5,7 @@
 
 [mergify]: https://mergify.io
 [mergify-status]: https://gh.mergify.io/badges/leanprover-community/mathlib.png?style=cut
+[![Build status](https://ci.appveyor.com/api/projects/status/y0dfsknx5h4iq7pj/branch/master?svg=true)](https://ci.appveyor.com/project/cipher1024/mathlib/branch/master)
 
 ## Lean standard library
 
@@ -68,7 +69,9 @@ chmod +x .git/hooks/post-checkout
 * Jeremy Avigad (@avigad): analysis
 * Reid Barton (@rwbarton): category theory, topology
 * Mario Carneiro (@digama0): all (lead maintainer)
+* Johan Commelin (@jcommelin): algebra
+* Sébastien Gouëzel (@sgouezel): topology, calculus
 * Simon Hudon (@cipher1024): all
 * Chris Hughes (@ChrisHughes24): group_theory, ring_theory, field_theory
 * Robert Y. Lewis (@robertylewis): all
-* Patrick Massot (@patrickmassot): documentation
+* Patrick Massot (@patrickmassot): documentation, topology
