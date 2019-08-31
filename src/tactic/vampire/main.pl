@@ -124,38 +124,6 @@ update_map(Map, map(Src, Tgt), map(Src, NewTgt)) :-
 update_maps(FstMaps, SndMaps, NewFstMaps) :-
   maplist(update_map(SndMaps), FstMaps, NewFstMaps).
 
-rep_trm(SrcTrm, TrmA, TrmB, TgtTrm, Rpl) :-
-  unif_trm(SrcTrm, TrmA, RplA),
-  subst_trm(RplA, TrmB, TrmB1),
-  inst_trm(TrmB1, TgtTrm, RplB),
-  compose_maps(RplA, RplB, Rpl).
-
-rep_trm(var(Num), _, _, TgtTrm, [map(Num, TgtTrm)]).
-
-rep_trm(fn(Num, SrcTrms), TrmA, TrmB, fn(Num, TgtTrms), Rpl) :- 
-  rep_trms(SrcTrms, TrmA, TrmB, TgtTrms, Rpl).
-
-rep_trms([], _, _, [], []).
-
-rep_trms([SrcTrm | SrcTrms], TrmA, TrmB, [TgtTrm | TgtTrms], Rpl) :- 
-  rep_trm(SrcTrm, TrmA, TrmB, TgtTrm, Rpl1), 
-  maplist(subst_trm(Rpl1), SrcTrms, SrcTrms1),
-  subst_trm(Rpl1, TrmA, TrmA1),
-  subst_trm(Rpl1, TrmB, TrmB1),
-  rep_trms(SrcTrms1, TrmA1, TrmB1, TgtTrms, Rpl2), 
-  compose_maps(Rpl1, Rpl2, Rpl).
-
-rep_atm(eq(SrcTrmA, SrcTrmB), TrmA, TrmB, eq(TgtTrmA, TgtTrmB), Rpl) :- 
-  rep_trm(SrcTrmA, TrmA, TrmB, TgtTrmA, RplA), 
-  subst_trm(RplA, SrcTrmB, SrcTrmB1),
-  subst_trm(RplA, TrmA, TrmA1),
-  subst_trm(RplA, TrmB, TrmB1),
-  rep_trm(SrcTrmB1, TrmA1, TrmB1, TgtTrmB, RplB), 
-  compose_maps(RplA, RplB, Rpl).
-
-rep_atm(rl(Num, SrcTrms), TrmA, TrmB, rl(Num, TgtTrms), Rpl) :- 
-  rep_trms(SrcTrms, TrmA, TrmB, TgtTrms, Rpl).
-
 unif_trms([], [], []).
 
 unif_trms([TrmA | TrmsA], [TrmB | TrmsB], Maps) :-
@@ -307,8 +275,59 @@ compile_map(SubPrf, Tgt, Prf) :-
   subst_cla(Inst, SubCnc, SubCnc1),
   compile_cnts(sub(Inst, SubPrf, SubCnc1), Nums, Prf).
 
-rep_lit(lit(Pol, SrcAtm), TrmA, TrmB, lit(Pol, TgtAtm), Rpl) :-
-  rep_atm(SrcAtm, TrmA, TrmB, TgtAtm, Rpl). 
+rep_map_trm(SrcTrm, TrmA, TrmB, TgtTrm, Rpl) :-
+  unif_trm(SrcTrm, TrmA, RplA),
+  subst_trm(RplA, TrmB, TrmB1),
+  inst_trm(TrmB1, TgtTrm, RplB),
+  compose_maps(RplA, RplB, Rpl).
+
+rep_map_trm(var(Num), _, _, TgtTrm, [map(Num, TgtTrm)]).
+
+rep_map_trm(fn(Num, SrcTrms), TrmA, TrmB, fn(Num, TgtTrms), Rpl) :- 
+  rep_map_trms(SrcTrms, TrmA, TrmB, TgtTrms, Rpl).
+
+rep_map_trms([], _, _, [], []).
+
+rep_map_trms([SrcTrm | SrcTrms], TrmA, TrmB, [TgtTrm | TgtTrms], Rpl) :- 
+  rep_map_trm(SrcTrm, TrmA, TrmB, TgtTrm, Rpl1), 
+  maplist(subst_trm(Rpl1), SrcTrms, SrcTrms1),
+  subst_trm(Rpl1, TrmA, TrmA1),
+  subst_trm(Rpl1, TrmB, TrmB1),
+  rep_map_trms(SrcTrms1, TrmA1, TrmB1, TgtTrms, Rpl2), 
+  compose_maps(Rpl1, Rpl2, Rpl).
+
+rep_map_atm(eq(SrcTrmA, SrcTrmB), TrmA, TrmB, eq(TgtTrmA, TgtTrmB), Rpl) :- 
+  rep_map_trm(SrcTrmA, TrmA, TrmB, TgtTrmA, RplA), 
+  subst_trm(RplA, SrcTrmB, SrcTrmB1),
+  subst_trm(RplA, TrmA, TrmA1),
+  subst_trm(RplA, TrmB, TrmB1),
+  rep_map_trm(SrcTrmB1, TrmA1, TrmB1, TgtTrmB, RplB), 
+  compose_maps(RplA, RplB, Rpl).
+
+rep_map_atm(rl(Num, SrcTrms), TrmA, TrmB, rl(Num, TgtTrms), Rpl) :- 
+  rep_map_trms(SrcTrms, TrmA, TrmB, TgtTrms, Rpl).
+
+rep_map_lit(lit(Pol, SrcAtm), TrmA, TrmB, lit(Pol, TgtAtm), Rpl) :-
+  rep_map_atm(SrcAtm, TrmA, TrmB, TgtAtm, Rpl),
+  subst_atm(Rpl, SrcAtm, SrcAtm1), 
+  subst_trm(Rpl, TrmA, TrmA1),
+  subst_trm(Rpl, TrmB, TrmB1),
+  rep_atm(TrmA1, TrmB1, SrcAtm1, TgtAtm).
+
+rep_trm(TrmL, TrmR, TrmL, TrmR).
+
+rep_trm(TrmL, _, var(Num), var(Num)) :-
+  not(TrmL = var(Num)).
+
+rep_trm(TrmL, TrmR, fn(Num, SrcTrms), fn(Num, TgtTrms)) :-
+  maplist(rep_trm(TrmL, TrmR), SrcTrms, TgtTrms).
+
+rep_atm(TrmL, TrmR, rl(Num, SrcTrms), rl(Num, TgtTrms)) :-
+  maplist(rep_trm(TrmL, TrmR), SrcTrms, TgtTrms).
+
+rep_atm(TrmL, TrmR, eq(SrcTrmA, SrcTrmB), eq(TgtTrmA, TgtTrmB)) :-
+  rep_trm(TrmL, TrmR, SrcTrmA, TgtTrmA),
+  rep_trm(TrmL, TrmR, SrcTrmB, TgtTrmB).
 
 compile_rep_core(PrfA, PrfB, Tgt, Prf) :-
   conc(PrfA, CncA),
@@ -316,7 +335,7 @@ compile_rep_core(PrfA, PrfB, Tgt, Prf) :-
   conc(PrfB, CncB),
   CncB = [lit(pos, eq(TrmA, TrmB)) | _],
   member(LitB, Tgt),
-  rep_lit(LitA, TrmA, TrmB, LitB, Rpl), 
+  rep_map_lit(LitA, TrmA, TrmB, LitB, Rpl), 
   subst_cla(Rpl, CncA, CncA1),
   PrfA1 = sub(Rpl, PrfA, CncA1),
   subst_cla(Rpl, CncB, CncB1),

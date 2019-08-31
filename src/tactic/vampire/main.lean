@@ -160,7 +160,7 @@ meta def repr : item → string
 | (item.trms ts) := ts.repr
 | (item.mp m)    := "VMAP"
 | (item.mps m)   := "VMAPS"
-| (item.prf x c) := c.repr
+| (item.prf x c) := "⟦" ++ c.repr ++ "⟧"
 
 meta instance has_repr : has_repr item := ⟨repr⟩ 
 
@@ -187,6 +187,9 @@ meta def build_proof_core (m : mat) (mx : expr) :
 | (item.nm k :: stk) ('H' :: infs) :=
   let πx := expr.mk_app `(@proof.H) [mx, k.to_expr] in
   build_proof_core (item.prf πx (m.nth k) :: stk) infs
+| (item.nl :: item.prf πx c :: stk) ('S' :: infs) :=
+  let πx' := expr.mk_app `(@proof.S) [mx, `([] : vmaps), cla.to_expr c, πx] in
+  build_proof_core (item.prf πx' c :: stk) infs
 | (item.mps μs :: item.prf πx c :: stk) ('S' :: infs) :=
   let c' := c.vsubs μs in
   let πx' := expr.mk_app `(@proof.S) [mx, μs.to_expr, cla.to_expr c, πx] in
@@ -241,6 +244,7 @@ meta def build_proof_core (m : mat) (mx : expr) :
   trace "Stack top : " >> trace X >>
   trace "Remaining proof" >> trace chs >> failed
 | [] chs := trace "Stack empty, remaining proof : " >> trace chs >> failed
+
 
 variables {R : rls α} {F : fns α} {V : vas α}
 variables {b : bool} (f g : frm)
@@ -387,7 +391,7 @@ do desugar,
    if inp = none
    then trace s
    else skip
-
+ 
 end vampire
  
 open lean.parser interactive vampire tactic

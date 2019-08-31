@@ -232,29 +232,27 @@ by vampire
 --    (exists y, y = g (f y) ∧ forall y', y' = g (f y') → y = y') :=
 -- by vampire
 
-/- Examples that discharge, but report weird type errors -/
+instance int.inhabited : inhabited int := ⟨0⟩ 
+ 
+example (i : int → int) (e : int) :
+   (forall x y z : int, x * (y * z) = (x * y) * z) ∧
+   (forall x, e * x = x) ∧
+   (forall x, i x * x = e) → 
+   forall x, x * i x = e := 
+by vampire
+ 
+example (i : int → int) (e : int) :
+   (forall x y z : int, x * (y * z) = (x * y) * z) ∧
+   (forall x : int, e * x = x) ∧
+   (forall x : int, i x * x = e) → 
+   forall x : int, x * e = x := 
+by vampire
 
--- instance int.inhabited : inhabited int := ⟨0⟩ 
- 
--- example (i : int → int) (e : int) :
---    (forall x y z : int, x * (y * z) = (x * y) * z) ∧
---    (forall x, e * x = x) ∧
---    (forall x, i(x) * x = e) → 
---    forall x, x * i x = e := 
--- by vampire
- 
--- example (i : int → int) (e : int) :
---    (forall x y z : int, x * (y * z) = (x * y) * z) ∧
---    (forall x : int, e * x = x) ∧
---    (forall x : int, i x * x = e) → 
---    forall x : int, x * e = x := 
--- by vampire
- 
--- example (i : nat → nat) (e : nat) :
---    (forall x y z : nat, x * (y * z) = (x * y) * z) ∧
---    (forall x : nat, e * x = x) ∧
---    (forall x : nat, i x * x = e) →
---    forall x : nat, x * i x = e :=
--- by vampire
+example (i : nat → nat) (e : nat) :
+   (forall x y z : nat, x * (y * z) = (x * y) * z) ∧
+   (forall x : nat, e * x = x) ∧
+   (forall x : nat, i x * x = e) →
+   forall x : nat, x * i x = e :=
+by vampire
 
 end
