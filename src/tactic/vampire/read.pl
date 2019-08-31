@@ -1,4 +1,4 @@
-:- [misc].
+:- [basic].
 
 read_lines(Out, []) :-
   read_line_to_string(Out, end_of_file), !.

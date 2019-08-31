@@ -2,7 +2,7 @@
 
 :- initialization(main, main).
 
-:- [write, read, check].
+:- [basic, write, read, compress].
 
 parse_inp([Num | Stk], ['v' | Chs], Mat) :-
   parse_inp([var(Num) | Stk], Chs, Mat).
@@ -67,62 +67,10 @@ vnew_cla(Cla, Num) :-
 offset(Ofs, Src, map(Src, var(Tgt))) :-
   Tgt is Src + Ofs.
 
-union_list([], []).
-
-union_list([Lst | Lsts], Un) :-
-  union_list(Lsts, Tmp),
-  union(Lst, Tmp, Un).
-
-vars_trm(var(Num), [Num]).
-
-vars_trm(fn(_, Trms), Nums) :-
-  maplist(vars_trm, Trms, Numss),
-  union_list(Numss, Nums).
-  
-vars_atm(rl(_, Trms), Nums) :-
-  maplist(vars_trm, Trms, Numss),
-  union_list(Numss, Nums).
-
-vars_atm(eq(TrmA, TrmB), Nums) :-
-  vars_trm(TrmA, NumsA),
-  vars_trm(TrmB, NumsB),
-  union(NumsA, NumsB, Nums).
-
-vars_lit(lit(_, Atm), Nums) :-
-  vars_atm(Atm, Nums).
-
-vars_cla(Cla, Nums) :-
-  maplist(vars_lit, Cla, Numss),
-  union(Numss, Nums).
-
 disjoiner(Cla1, Cla2, Dsj) :-
   vnew_cla(Cla2, Num),
   vars_cla(Cla1, Nums),
   maplist(offset(Num), Nums, Dsj).
-
-compose_maps(FstMaps, SndMaps, Maps) :-
-  update_maps(FstMaps, SndMaps, NewFstMaps),
-  append(NewFstMaps, SndMaps, Maps).
-
-src(Num, map(Num, _)).
-
-rm_red_maps([], []).
-
-rm_red_maps([map(Num, Trm) | Maps], [map(Num, Trm) | NewMaps]) :- 
-  exclude(src(Num), Maps, TmpMaps),
-  rm_red_maps(TmpMaps, NewMaps).
-
-idmap(map(Num, var(Num))).
-
-compress_maps(Maps, NewMaps) :-
-  rm_red_maps(Maps, TmpMaps),
-  exclude(idmap, TmpMaps, NewMaps).
-
-update_map(Map, map(Src, Tgt), map(Src, NewTgt)) :-
-  subst_trm(Map, Tgt, NewTgt).
-
-update_maps(FstMaps, SndMaps, NewFstMaps) :-
-  maplist(update_map(SndMaps), FstMaps, NewFstMaps).
 
 unif_trms([], [], []).
 
@@ -231,15 +179,6 @@ dup_idxs([_ | Tl], IdxA, IdxB) :-
   dup_idxs(Tl, SubIdxA, SubIdxB),
   IdxA is SubIdxA + 1,
   IdxB is SubIdxB + 1.
-
-conc(hyp(_, Cnc), Cnc).
-conc(res(_, _, Cnc), Cnc).
-conc(rot(_, _, Cnc), Cnc).
-conc(cnt(_, Cnc), Cnc).
-conc(sub(_, _, Cnc), Cnc).
-conc(rep(_, _, Cnc), Cnc).
-conc(sym(_, Cnc), Cnc).
-conc(trv(_, Cnc), Cnc).
 
 allign_eq(Prf, Prf) :-
   conc(Prf, [Lit, Lit | _]).
@@ -435,46 +374,6 @@ compile(Mat, Lns, Tgt, map(Num), Prf) :-
 compile(Mat, Lns, Num, Prf) :-
   member(line(Num, Tgt, Rul), Lns),
   compile(Mat, Lns, Tgt, Rul, Prf).
-
-compress(hyp(Num, Cla), hyp(Num, Cla)).
-
-compress(rot(0, Prf, _), NewPrf) :-
-  compress(Prf, NewPrf).
-
-compress(rot(Num, Prf, Cla), rot(Num, NewPrf, Cla)) :-
-  0 < Num,
-  compress(Prf, NewPrf).
-
-compress(res(PrfA, PrfB, Cla), res(NewPrfA, NewPrfB, Cla)) :-
-  compress(PrfA, NewPrfA),
-  compress(PrfB, NewPrfB).
-
-compress(sub(Maps, Prf, Cla), NewPrf) :-
-  ( compress_maps(Maps, []), compress(Prf, NewPrf) ) ; 
-  ( compress_maps(Maps, NewMaps), 
-    compress(Prf, TmpPrf), 
-    NewPrf = sub(NewMaps, TmpPrf, Cla) ).
-
-compress(rep(PrfA, PrfB, Cla), rep(NewPrfA, NewPrfB, Cla)) :-
-  compress(PrfA, NewPrfA),
-  compress(PrfB, NewPrfB).
-
-compress(trv(Prf, Cla), trv(NewPrf, Cla)) :-
-  compress(Prf, NewPrf).
-
-compress(sym(Prf, Cla), sym(NewPrf, Cla)) :-
-  compress(Prf, NewPrf).
-
-compress(cnt(Prf, Cla), cnt(NewPrf, Cla)) :-
-  compress(Prf, NewPrf).
-
-relevant(Vars, map(Num, _)) :-
-  member(Num, Vars).
-
-filter_maps(Prf, Maps, NewMaps) :-
-  conc(Prf, Cnc),
-  vars_cla(Cnc, Vars),
-  include(relevant(Vars), Maps, NewMaps).
 
 compile(Mat, Lns, Prf) :-
   length(Lns, Lth),

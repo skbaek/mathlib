@@ -1,4 +1,4 @@
-:- [misc].
+:- [basic].
 
 comma(StrA, StrB, Str) :-
   join_string([StrB, ", ", StrA], Str).

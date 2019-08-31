@@ -1,29 +1,4 @@
-:- [misc].
-
-subst_trms(Maps, Trms, NewTrms) :-
-  maplist(subst_trm(Maps), Trms, NewTrms).
-
-subst_trm(Maps, var(Num), var(Num)) :-
-  not(member(map(Num, _), Maps)).
-
-subst_trm(Maps, var(Num), Trm) :-
-  member(map(Num, Trm), Maps), !.
-
-subst_trm(Maps, fn(Num, Trms), fn(Num, NewTrms)) :-
-  subst_trms(Maps, Trms, NewTrms).
-
-subst_atm(Maps, eq(SrcTrmA, SrcTrmB), eq(TgtTrmA, TgtTrmB)) :-
-  subst_trm(Maps, SrcTrmA, TgtTrmA),
-  subst_trm(Maps, SrcTrmB, TgtTrmB).
-
-subst_atm(Maps, rl(Num, Trms), rl(Num, NewTrms)) :-
-  subst_trms(Maps, Trms, NewTrms).
-
-subst_lit(Map, lit(Pol, SrcAtm), lit(Pol, TgtAtm)) :-
-  subst_atm(Map, SrcAtm, TgtAtm).
-
-subst_cla(Maps, Cla, NewCla) :-
-  maplist(subst_lit(Maps), Cla, NewCla).
+:- [basic].
 
 /* 
 check(Mat, LPrf, success) :-

@@ -198,6 +198,9 @@ end
 
 section
 
+/- Equality reasoning examples, also from John Harrison's
+   Handbook of Practical Logic and Automated Reasoning. -/
+
 variables {α : Type} [inhabited α]
 variables {f g i : α → α}
 variables {p q : α → Prop}
