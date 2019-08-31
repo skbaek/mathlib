@@ -232,9 +232,9 @@ dup_idxs([_ | Tl], IdxA, IdxB) :-
   IdxA is SubIdxA + 1,
   IdxB is SubIdxB + 1.
 
-conc(asm(_, Cnc), Cnc).
-conc(rsl(_, _, Cnc), Cnc).
-conc(rtt(_, _, Cnc), Cnc).
+conc(hyp(_, Cnc), Cnc).
+conc(res(_, _, Cnc), Cnc).
+conc(rot(_, _, Cnc), Cnc).
 conc(cnt(_, Cnc), Cnc).
 conc(sub(_, _, Cnc), Cnc).
 conc(rep(_, _, Cnc), Cnc).
@@ -255,9 +255,9 @@ compile_cnts(SubPrf, Dsts, Prf) :-
   dup_idxs(Dsts, IdxA, IdxB),
   conc(SubPrf, SubCnc),
   tor(SubCnc, IdxA, SubCnc1),
-  SubPrf1 = rtt(IdxA, SubPrf, SubCnc1),
+  SubPrf1 = rot(IdxA, SubPrf, SubCnc1),
   tor(SubCnc1, IdxB, [Lit1, Lit2 | SubCnc2]),
-  SubPrf2 = rtt(IdxB, SubPrf1, [Lit1, Lit2 | SubCnc2]),
+  SubPrf2 = rot(IdxB, SubPrf1, [Lit1, Lit2 | SubCnc2]),
   allign_eq(SubPrf2, SubPrf3),
   conc(SubPrf3, [Lit, Lit | SubCnc3]),
   SubPrf4 = cnt(SubPrf3, [Lit | SubCnc3]),
@@ -350,7 +350,7 @@ select_dir(Prf, Prf).
 select_dir(Prf, sym(Prf, [lit(Pol, eq(TrmB, TrmA)) | Cnc])) :-
   conc(Prf, [lit(Pol, eq(TrmA, TrmB)) | Cnc]).
 
-select_rot(Prf, rtt(Num, Prf, NewCnc)) :- 
+select_rot(Prf, rot(Num, Prf, NewCnc)) :- 
   conc(Prf, Cnc),
   tor(Cnc, Num, NewCnc).
 
@@ -371,7 +371,7 @@ compile_rep(PrfA, PrfB, Tgt, Prf) :-
   select_lit(PrfB1, PrfB2), 
   compile_rep_core(PrfA2, PrfB2, Tgt, Prf).
 
-compile_rsl(PrfA, PrfB, rsl(PrfA2, PrfB1, Cnc)) :-
+compile_res(PrfA, PrfB, res(PrfA2, PrfB1, Cnc)) :-
   conc(PrfA, CncA),
   CncA = [lit(neg, _) | _],
   conc(PrfB, CncB),
@@ -389,21 +389,21 @@ compile_rsl(PrfA, PrfB, rsl(PrfA2, PrfB1, Cnc)) :-
   PrfB1 = sub(Unf, PrfB, CncB1),
   append(ClaA2, ClaB1, Cnc).
 
-compile(Mat, _, Tgt, asm, Prf) :-
+compile(Mat, _, Tgt, hyp, Prf) :-
   nth0(Num, Mat, Cla),
-  compile_map(asm(Num, Cla), Tgt, Prf).
+  compile_map(hyp(Num, Cla), Tgt, Prf).
 
-compile(Mat, Lns, Tgt, rsl(NumA, NumB), Prf) :-
+compile(Mat, Lns, Tgt, res(NumA, NumB), Prf) :-
   compile(Mat, Lns, NumA, PrfA),
   compile(Mat, Lns, NumB, PrfB),
   conc(PrfA, CncA),
   conc(PrfB, CncB),
   tor(CncA, IdxA, CncA1),
   tor(CncB, IdxB, CncB1),
-  PrfA1 = rtt(IdxA, PrfA, CncA1),
-  PrfB1 = rtt(IdxB, PrfB, CncB1),
-  ( compile_rsl(PrfA1, PrfB1, SubPrf) ;
-    compile_rsl(PrfB1, PrfA1, SubPrf) ),
+  PrfA1 = rot(IdxA, PrfA, CncA1),
+  PrfB1 = rot(IdxB, PrfB, CncB1),
+  ( compile_res(PrfA1, PrfB1, SubPrf) ;
+    compile_res(PrfB1, PrfA1, SubPrf) ),
   compile_map(SubPrf, Tgt, Prf).
 
 compile(Mat, Lns, Tgt, rep(NumA, NumB), Prf) :-
@@ -416,7 +416,7 @@ compile(Mat, Lns, Tgt, eqres(Num), Prf) :-
   conc(Prf1, Cnc1),
   tor(Cnc1, Idx, Cnc2), 
   Cnc2 = [lit(neg, eq(TrmA, TrmB)) | _],
-  Prf2 = rtt(Idx, Prf1, Cnc2),
+  Prf2 = rot(Idx, Prf1, Cnc2),
   unif_trm(TrmA, TrmB, Unf),
   subst_cla(Unf, Cnc2, Cnc3),
   Cnc3 = [lit(neg, eq(Trm, Trm)) | Tl],
@@ -436,16 +436,16 @@ compile(Mat, Lns, Num, Prf) :-
   member(line(Num, Tgt, Rul), Lns),
   compile(Mat, Lns, Tgt, Rul, Prf).
 
-compress(asm(Num, Cla), asm(Num, Cla)).
+compress(hyp(Num, Cla), hyp(Num, Cla)).
 
-compress(rtt(0, Prf, _), NewPrf) :-
+compress(rot(0, Prf, _), NewPrf) :-
   compress(Prf, NewPrf).
 
-compress(rtt(Num, Prf, Cla), rtt(Num, NewPrf, Cla)) :-
+compress(rot(Num, Prf, Cla), rot(Num, NewPrf, Cla)) :-
   0 < Num,
   compress(Prf, NewPrf).
 
-compress(rsl(PrfA, PrfB, Cla), rsl(NewPrfA, NewPrfB, Cla)) :-
+compress(res(PrfA, PrfB, Cla), res(NewPrfA, NewPrfB, Cla)) :-
   compress(PrfA, NewPrfA),
   compress(PrfB, NewPrfB).
 
@@ -535,18 +535,18 @@ cla_string(Cla, Str) :-
 maps_string(Maps, Str) :-
   list_string(map_string, Maps, Str).
 
-proof_string(Spcs, asm(Num, Cnc), Str) :-
+proof_string(Spcs, hyp(Num, Cnc), Str) :-
   number_string(Num, NumStr),
   cla_string(Cnc, CncStr),
-  join_string([Spcs, "asm ", NumStr, " : ", CncStr], Str).
+  join_string([Spcs, "hyp ", NumStr, " : ", CncStr], Str).
 
-proof_string(Spcs, rsl(PrfA, PrfB, Cnc), Str) :-
+proof_string(Spcs, res(PrfA, PrfB, Cnc), Str) :-
   string_concat("  ", Spcs, NewSpcs),
   cla_string(Cnc, CncStr),
   proof_string(NewSpcs, PrfA, StrA),
   proof_string(NewSpcs, PrfB, StrB),
   string_codes(Nl, [10]),
-  join_string([Spcs, "rsl : ", CncStr, Nl, StrA, Nl, StrB], Str).
+  join_string([Spcs, "res : ", CncStr, Nl, StrA, Nl, StrB], Str).
 
 proof_string(Spcs, sub(Maps, PrfA, Cnc), Str) :-
   string_concat("  ", Spcs, NewSpcs),
@@ -556,13 +556,13 @@ proof_string(Spcs, sub(Maps, PrfA, Cnc), Str) :-
   string_codes(Nl, [10]),
   join_string([Spcs, "sub : ", CncStr, Nl, NewSpcs, MapsStr, Nl, StrA], Str).
 
-proof_string(Spcs, rtt(Num, PrfA, Cnc), Str) :-
+proof_string(Spcs, rot(Num, PrfA, Cnc), Str) :-
   string_concat("  ", Spcs, NewSpcs),
   number_string(Num, NumStr),
   proof_string(NewSpcs, PrfA, StrA),
   cla_string(Cnc, CncStr),
   string_codes(Nl, [10]),
-  join_string([Spcs, "rtt ", NumStr, " : ", CncStr, Nl, StrA], Str).
+  join_string([Spcs, "rot ", NumStr, " : ", CncStr, Nl, StrA], Str).
 
 proof_string(Spcs, cnt(PrfA, Cnc), Str) :-
   string_concat("  ", Spcs, NewSpcs),
@@ -613,11 +613,11 @@ linearize_maps([map(Num, Trm) | Maps], Str) :-
   linearize_maps(Maps, SubStr),
   join_string([SubStr, TrmStr, "b", NumStr, "mc"], Str).
 
-linearize_prf(asm(Num, _), Str) :-
+linearize_prf(hyp(Num, _), Str) :-
   number_binstr(Num, NumStr),
   join_string(["b", NumStr, "H"], Str).
 
-linearize_prf(rsl(PrfA, PrfB, _), Str) :-
+linearize_prf(res(PrfA, PrfB, _), Str) :-
   linearize_prf(PrfA, StrA),
   linearize_prf(PrfB, StrB),
   join_string([StrA, StrB, "R"], Str).
@@ -627,7 +627,7 @@ linearize_prf(rep(PrfA, PrfB, _), Str) :-
   linearize_prf(PrfB, StrB),
   join_string([StrA, StrB, "P"], Str).
 
-linearize_prf(rtt(Num, Prf, _), Str) :-
+linearize_prf(rot(Num, Prf, _), Str) :-
   number_binstr(Num, NumStr),
   linearize_prf(Prf, PrfStr),
   join_string([PrfStr, "b", NumStr, "T"], Str).
