@@ -1,17 +1,17 @@
 :- [basic].
 
-read_lines(Out, []) :-
+read_lns(Out, []) :-
   read_line_to_string(Out, end_of_file), !.
 
-read_lines(Out, Cdss) :-
+read_lns(Out, Cdss) :-
   read_line_to_codes(Out, Cds),
-  read_lines(Cds, Out, Cdss).
+  read_lns(Cds, Out, Cdss).
 
-read_lines(end_of_file, _, []) :- !.
+read_lns(end_of_file, _, []) :- !.
 
-read_lines(Cds, Out, [Cds | Cdss]) :-
+read_lns(Cds, Out, [Cds | Cdss]) :-
         read_line_to_codes(Out, Tmp),
-        read_lines(Tmp, Out, Cdss).
+        read_lns(Tmp, Out, Cdss).
 
 vampire(Loc, Cdss) :-
   setup_call_cleanup(
@@ -20,7 +20,7 @@ vampire(Loc, Cdss) :-
       ["--avatar", "off", Loc],
       [stdout(pipe(Out))]
     ),
-    read_lines(Out, Cdss),
+    read_lns(Out, Cdss),
     close(Out)
   ).
 
@@ -50,7 +50,6 @@ parse_rul(Str, res(Idx1, Idx2)) :-
   Idx1 is Num1 - 1,
   number_string(Num2, NumStr2),
   Idx2 is Num2 - 1.
-
 
 parse_rul(Str, rep(Idx1, Idx2)) :-
   ( string_concat("superposition ", Tmp, Str) ;
@@ -145,7 +144,7 @@ parse_cla(Str, Cla) :-
   split_string(Str, "|", " ", LitStrs),
   maplist(parse_lit, LitStrs, Cla).
 
-parse_line(Str, line(Idx, Cla, Rul)) :-
+parse_ln(Str, ln(Idx, Rul, Cla)) :-
   split_string(Str, ".[", "] ", [NumStr, ClaStr, RulStr]),
   number_string(Num, NumStr),
   Idx is Num - 1,
@@ -153,12 +152,19 @@ parse_line(Str, line(Idx, Cla, Rul)) :-
   parse_rul(RulStr, Rul).
 
 read_proof(Loc, Lns) :-
-  vampire(Loc, Cds),
+  vampire(Loc, Sdc),
+  reverse(Sdc, Cds),
   include(head_is_digit, Cds, Tmp),
   maplist(string_codes, Strs, Tmp),
-  maplist(parse_line, Strs, Lns).
+  maplist(parse_ln, Strs, Lns).
 
 read_test(Loc, Strs) :-
-  vampire(Loc, Cds),
+  vampire(Loc, Sdc),
+  reverse(Sdc, Cds),
   include(head_is_digit, Cds, Tmp),
   maplist(string_codes, Strs, Tmp).
+
+% read_test(Loc, Strs) :-
+%   vampire(Loc, Cds),
+%   include(head_is_digit, Cds, Tmp),
+%   maplist(string_codes, Strs, Tmp).

@@ -1,5 +1,13 @@
 :- [basic].
 
+
+/* 
+
+% filter_maps(Prf, Maps, NewMaps) :-
+%   conc(Prf, Cnc),
+%   vars_cla(Cnc, Vars),
+%   include(relevant(Vars), Maps, NewMaps).
+
 % Remove rotation by zero
 
 rm_rot_zero(hyp(Num, Cla), hyp(Num, Cla)).
@@ -61,28 +69,6 @@ push_maps(cnt(Prf, Cla), Maps, cnt(NewPrf, Cla)) :-
 
 % Remove superfluous mappings
 
-relevant(Vars, map(Num, _)) :-
-  member(Num, Vars).
-
-filter_maps(Prf, Maps, NewMaps) :-
-  conc(Prf, Cnc),
-  vars_cla(Cnc, Vars),
-  include(relevant(Vars), Maps, NewMaps).
-
-src(Num, map(Num, _)).
-
-rm_red_maps([], []).
-
-rm_red_maps([map(Num, Trm) | Maps], [map(Num, Trm) | NewMaps]) :- 
-  exclude(src(Num), Maps, TmpMaps),
-  rm_red_maps(TmpMaps, NewMaps).
-
-idmap(map(Num, var(Num))).
-
-rm_maps_core(Vrs, Maps, NewMaps) :-
-  rm_red_maps(Maps, Maps1),
-  exclude(idmap, Maps1, Maps2),
-  include(relevant(Vrs), Maps2, NewMaps).
 
 rm_maps(hyp(Num, Cla), hyp(Num, Cla)).
 
@@ -120,3 +106,5 @@ compress(Prf, NewPrf) :-
   rm_rot_zero(Prf, Prf1),
   push_maps(Prf1, [], Prf2),
   rm_maps(Prf2, NewPrf).
+
+*/

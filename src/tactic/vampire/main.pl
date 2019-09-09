@@ -2,7 +2,7 @@
 
 :- initialization(main, main).
 
-:- [basic, write, read, compress].
+:- [basic, write, read].
 
 parse_inp([Num | Stk], ['v' | Chs], Mat) :-
   parse_inp([var(Num) | Stk], Chs, Mat).
@@ -79,7 +79,7 @@ unif_trms([TrmA | TrmsA], [TrmB | TrmsB], Maps) :-
   subst_trms(FstMaps, TrmsA, TrmsA1),
   subst_trms(FstMaps, TrmsB, TrmsB1),
   unif_trms(TrmsA1, TrmsB1, SndMaps),
-  compose_maps(FstMaps, SndMaps, Maps).
+  compose_inst(FstMaps, SndMaps, Maps).
 
 unif_trm(var(Num), Trm, [map(Num, Trm)]).
 
@@ -96,7 +96,7 @@ unif_atm(eq(TrmAL, TrmAR), eq(TrmBL, TrmBR), Maps) :-
   subst_trm(FstMaps, TrmAR, TrmAR1),
   subst_trm(FstMaps, TrmBR, TrmBR1),
   unif_trm(TrmAR1, TrmBR1, SndMaps),
-  compose_maps(FstMaps, SndMaps, Maps).
+  compose_inst(FstMaps, SndMaps, Maps).
 
 range(0, Acc, Acc).
 
@@ -140,27 +140,41 @@ inst_atm(eq(SrcTrmA, SrcTrmB), eq(TgtTrmA, TgtTrmB), Maps) :-
   inst_trm(SrcTrmB, TgtTrmB, Maps2),
   merge_instantiators(Maps1, Maps2, Maps).
 
-choose_map_atm(SrcAtm, TgtAtm, Maps) :- 
+calc_inst_atm(SrcAtm, TgtAtm, Maps) :- 
   inst_atm(SrcAtm, TgtAtm, Maps).
 
-choose_map_atm(eq(TrmA, TrmB), TgtAtm, Maps) :- 
+calc_inst_atm(eq(TrmA, TrmB), TgtAtm, Maps) :- 
   inst_atm(eq(TrmB, TrmA), TgtAtm, Maps).
 
-choose_map_lit(lit(Pol, SrcAtm), lit(Pol, TgtAtm), Maps) :-
-  choose_map_atm(SrcAtm, TgtAtm, Maps).
+calc_inst_lit(lit(Pol, SrcAtm), lit(Pol, TgtAtm), Maps) :-
+  calc_inst_atm(SrcAtm, TgtAtm, Maps).
 
-choose_map_cla([], _, [], []).
+calc_inst_perm_cla([], _, [], []).
 
-choose_map_cla([Lit | Cla], Tgt, Maps, [LitNum | ClaNums]) :-
+calc_inst_perm_cla([Lit | Cla], Tgt, Inst, [LitNum | ClaNums]) :-
   nth0(LitNum, Tgt, TgtLit),
-  choose_map_lit(Lit, TgtLit, LitMaps),
-  choose_map_cla(Cla, Tgt, ClaMaps, ClaNums),
-  merge_instantiators(LitMaps, ClaMaps, Maps).
+  calc_inst_lit(Lit, TgtLit, LitInst),
+  calc_inst_perm_cla(Cla, Tgt, ClaInst, ClaNums),
+  merge_instantiators(LitInst, ClaInst, Inst).
 
-surjective(Ran, Nums) :-
-  length(Ran, Lth),
-  range(Lth, Idxs),
-  subset(Idxs, Nums).
+calc_inst_cla([], _, []).
+
+calc_inst_cla([Lit | Cla], TgtCla, Inst) :- 
+  member(TgtLit, TgtCla),
+  calc_inst_lit(Lit, TgtLit, LitInst),
+  calc_inst_cla(Cla, TgtCla, ClaInst),
+  merge_instantiators(LitInst, ClaInst, Inst).
+
+nth0rot(List, Elem, Index) :- nth0(Index, List, Elem).
+
+calc_perm(Cla, Tgt, Prm) :-
+  maplist(nth0rot(Tgt), Cla, Prm).
+
+% surjective(Perm, Tgt) :-
+%   length(Tgt, Lth),
+%   range(Lth, Idxs),
+%   subset(Idxs, Perm).
+
 
 count(_, [], 0).
 
@@ -187,10 +201,10 @@ allign_eq(SubPrf, Prf) :-
   conc(SubPrf, [lit(Pol, eq(TrmA, TrmB)), lit(Pol, eq(TrmB, TrmA)) | Cnc]),
   Prf = sym(SubPrf, [lit(Pol, eq(TrmB, TrmA)), lit(Pol, eq(TrmB, TrmA)) | Cnc]).
 
-compile_cnts(Prf, Dsts, Prf) :-
+cmpl_cnts(Prf, Dsts, Prf) :-
   not(dup_idxs(Dsts, _, _)).
 
-compile_cnts(SubPrf, Dsts, Prf) :-
+cmpl_cnts(SubPrf, Dsts, Prf) :-
   dup_idxs(Dsts, IdxA, IdxB),
   conc(SubPrf, SubCnc),
   tor(SubCnc, IdxA, SubCnc1),
@@ -202,23 +216,17 @@ compile_cnts(SubPrf, Dsts, Prf) :-
   SubPrf4 = cnt(SubPrf3, [Lit | SubCnc3]),
   tor(Dsts,  IdxA, Dsts1),
   tor(Dsts1, IdxB, [Dst, Dst | Dsts2]),
-  compile_cnts(SubPrf4, [Dst | Dsts2], Prf).
+  cmpl_cnts(SubPrf4, [Dst | Dsts2], Prf).
 
-compute_maps(Cla, Tgt, Maps, Nums) :-
-  choose_map_cla(Cla, Tgt, Maps, Nums),
-  surjective(Tgt, Nums).
-
-compile_map(SubPrf, Tgt, Prf) :-
-  conc(SubPrf, SubCnc),
-  compute_maps(SubCnc, Tgt, Inst, Nums),
-  subst_cla(Inst, SubCnc, SubCnc1),
-  compile_cnts(sub(Inst, SubPrf, SubCnc1), Nums, Prf).
+% compute_maps(Cla, Tgt, Maps, Nums) :-
+%   calc_inst_perm_cla(Cla, Tgt, Maps, Nums),
+%   surjective(Tgt, Nums).
 
 rep_map_trm(SrcTrm, TrmA, TrmB, TgtTrm, Rpl) :-
   unif_trm(SrcTrm, TrmA, RplA),
   subst_trm(RplA, TrmB, TrmB1),
   inst_trm(TrmB1, TgtTrm, RplB),
-  compose_maps(RplA, RplB, Rpl).
+  compose_inst(RplA, RplB, Rpl).
 
 rep_map_trm(var(Num), _, _, TgtTrm, [map(Num, TgtTrm)]).
 
@@ -233,7 +241,7 @@ rep_map_trms([SrcTrm | SrcTrms], TrmA, TrmB, [TgtTrm | TgtTrms], Rpl) :-
   subst_trm(Rpl1, TrmA, TrmA1),
   subst_trm(Rpl1, TrmB, TrmB1),
   rep_map_trms(SrcTrms1, TrmA1, TrmB1, TgtTrms, Rpl2), 
-  compose_maps(Rpl1, Rpl2, Rpl).
+  compose_inst(Rpl1, Rpl2, Rpl).
 
 rep_map_atm(eq(SrcTrmA, SrcTrmB), TrmA, TrmB, eq(TgtTrmA, TgtTrmB), Rpl) :- 
   rep_map_trm(SrcTrmA, TrmA, TrmB, TgtTrmA, RplA), 
@@ -241,7 +249,7 @@ rep_map_atm(eq(SrcTrmA, SrcTrmB), TrmA, TrmB, eq(TgtTrmA, TgtTrmB), Rpl) :-
   subst_trm(RplA, TrmA, TrmA1),
   subst_trm(RplA, TrmB, TrmB1),
   rep_map_trm(SrcTrmB1, TrmA1, TrmB1, TgtTrmB, RplB), 
-  compose_maps(RplA, RplB, Rpl).
+  compose_inst(RplA, RplB, Rpl).
 
 rep_map_atm(rl(Num, SrcTrms), TrmA, TrmB, rl(Num, TgtTrms), Rpl) :- 
   rep_map_trms(SrcTrms, TrmA, TrmB, TgtTrms, Rpl).
@@ -268,21 +276,6 @@ rep_atm(TrmL, TrmR, eq(SrcTrmA, SrcTrmB), eq(TgtTrmA, TgtTrmB)) :-
   rep_trm(TrmL, TrmR, SrcTrmA, TgtTrmA),
   rep_trm(TrmL, TrmR, SrcTrmB, TgtTrmB).
 
-compile_rep_core(PrfA, PrfB, Tgt, Prf) :-
-  conc(PrfA, CncA),
-  CncA = [LitA | _],
-  conc(PrfB, CncB),
-  CncB = [lit(pos, eq(TrmA, TrmB)) | _],
-  member(LitB, Tgt),
-  rep_map_lit(LitA, TrmA, TrmB, LitB, Rpl), 
-  subst_cla(Rpl, CncA, CncA1),
-  PrfA1 = sub(Rpl, PrfA, CncA1),
-  subst_cla(Rpl, CncB, CncB1),
-  PrfB1 = sub(Rpl, PrfB, CncB1),
-  CncA1 = [_ | TlA],
-  CncB1 = [_ | TlB],
-  append(TlA, TlB, Tl),
-  compile_map(rep(PrfA1, PrfB1, [LitB | Tl]), Tgt, Prf).
 
 select_dir(Prf, Prf).
 
@@ -297,20 +290,7 @@ select_lit(Prf, NewPrf) :-
   select_rot(Prf, TmpPrf),
   select_dir(TmpPrf, NewPrf).
 
-compile_rep(PrfA, PrfB, Tgt, Prf) :-
-  conc(PrfA, CncA),
-  conc(PrfB, CncB),
-  disjoiner(CncB, Tgt, DsjB),
-  subst_cla(DsjB, CncB, CncB1),
-  PrfB1 = sub(DsjB, PrfB, CncB1),
-  disjoiner(CncA, CncB1, DsjA),
-  subst_cla(DsjA, CncA, CncA1),
-  PrfA1 = sub(DsjA, PrfA, CncA1),
-  select_lit(PrfA1, PrfA2), 
-  select_lit(PrfB1, PrfB2), 
-  compile_rep_core(PrfA2, PrfB2, Tgt, Prf).
-
-compile_res(PrfA, PrfB, res(PrfA2, PrfB1, Cnc)) :-
+cmpl_res(PrfA, PrfB, res(PrfA2, PrfB1, Cnc)) :-
   conc(PrfA, CncA),
   CncA = [lit(neg, _) | _],
   conc(PrfB, CncB),
@@ -328,30 +308,165 @@ compile_res(PrfA, PrfB, res(PrfA2, PrfB1, Cnc)) :-
   PrfB1 = sub(Unf, PrfB, CncB1),
   append(ClaA2, ClaB1, Cnc).
 
-compile(Mat, _, Tgt, hyp, Prf) :-
-  nth0(Num, Mat, Cla),
-  compile_map(hyp(Num, Cla), Tgt, Prf).
+temp_loc("/var/tmp/temp_goal_file").
 
-compile(Mat, Lns, Tgt, res(NumA, NumB), Prf) :-
-  compile(Mat, Lns, NumA, PrfA),
-  compile(Mat, Lns, NumB, PrfB),
+% cmpl_map(Cla, Tgt, Prf) :-
+%   conc(SubPrf, Cnc),
+%   compute_maps(Cnc, Tgt, Inst, Nums),
+%   subst_cla(Inst, SubCnc, NewCnc),
+%   cmpl_cnts(sub(Inst, SubPrf, SubCnc1), Nums, Prf).
+
+pluck(Fst, [Elm | Snd], Elm, Rem) :-
+  append(Fst, Snd, Rem).
+
+pluck(Fst, [Hd | Snd], Elm, Rem) :-
+  pluck([Hd | Fst], Snd, Elm, Rem). 
+
+pluck(Lst, Elm, Rem) :-
+  pluck([], Lst, Elm, Rem). 
+
+expl_ln(_, _, ln(LnNum, trv(PremNum), Cla),
+  [ ln(LnNum, trv(abs(PremNum)), Cla) ]).
+
+expl_ln(_, Lns, 
+  ln(LnNum, map(PremNum), Cla), 
+  [ ln(LnNum, sub(rel(0)), Cla),
+    ln(none, inst(Inst, abs(PremNum)), ClaA) ]) :- 
+  member(ln(PremNum, _, ClaA0), Lns),
+  calc_inst_cla(ClaA0, Cla, Inst),
+  subst_cla(Inst, ClaA0, ClaA).
+
+expl_ln(_, Lns, 
+  ln(LnNum, rep(PremNumA, PremNumB), Cla), 
+  [ ln(LnNum, sub(rel(0)), Cla),
+    ln(none, rep(rel(2), rel(0)), [Lit | TlCla]),
+    ln(none, sub(rel(0)), [lit(pos, eq(TrmA, TrmB)) | TlCla]),
+    ln(none, inst(PremNumB, InstB), ClaB),  
+    ln(none, sub(rel(0)), [LitA | TlCla]),
+    ln(none, inst(PremNumA, InstA), ClaA) ]) :- 
+  member(ln(PremNumA, _, ClaA0), Lns),
+  member(ln(PremNumB, _, ClaB0), Lns),
+  disjoiner(ClaB0, Cla, DsjB),
+  subst_cla(DsjB, ClaB0, ClaB1),
+  disjoiner(ClaA0, ClaB1, DsjA),
+  subst_cla(DsjA, ClaA0, ClaA1),
+
+  pluck(ClaA1, LitA0, TlClaA), 
+  pluck(ClaB1, LitB0, TlClaB), 
+  ( LitB0 = lit(pos, eq(TrmA0, TrmB0)) ; 
+    LitB0 = lit(pos, eq(TrmB0, TrmA0)) ),
+  pluck(Cla, Lit, TlCla), 
+
+  rep_map_lit(LitA0, TrmA0, TrmB0, Lit, Inst0), 
+  calc_inst_cla(TlClaA, TlCla, Inst1),
+  merge_instantiators(Inst0, Inst1, Inst2),
+  calc_inst_cla(TlClaB, TlCla, Inst3),
+  merge_instantiators(Inst2, Inst3, Inst4),
+
+  compress_compose_insts(ClaA0, [DsjA, Inst4], InstA),
+  compress_compose_insts(ClaB0, [DsjB, Inst4], InstB),
+
+  subst_cla(InstA, ClaA0, ClaA),
+  subst_cla(InstB, ClaB0, ClaB),
+  subst_lit(InstA, LitA0, LitA),
+  subst_trm(InstB, TrmA0, TrmA),
+  subst_trm(InstB, TrmB0, TrmB).
+
+expl_ln(_, Lns, ln(LnNum, eqres(PremNum), Cla), 
+  [ ln(LnNum, trv(rel(0)), Cla),
+    ln(none, sub(rel(0)), [lit(neg, eq(Trm, Trm)) | Cla]),
+    ln(none, inst(Inst, abs(PremNum)), ClaA) ]) :-
+  member(ln(PremNum, _, ClaA0), Lns),
+  pluck(ClaA0, lit(neg, eq(TrmA, TrmB)), ClaA1),
+  unif_trm(TrmA, TrmB, Unf),
+  subst_cla(Unf, ClaA1, ClaA2),
+  calc_inst_cla(ClaA2, Cla, TmpInst),
+  compress_compose_insts(ClaA0, [Unf, TmpInst], Inst),
+  subst_trm(Inst, TrmA, Trm),
+  subst_cla(Inst, ClaA0, ClaA).
+
+expl_ln(_, Lns, ln(LnNum, res(NumA, NumB), Cla), 
+  [ ln(LnNum, res(rel(2), rel(0)), Cla),
+    ln(none, sub(rel(0)), [lit(pos, Atm) | Cla]),
+    ln(none, inst(InstB, abs(PremNumB)), ClaB),
+    ln(none, sub(rel(0)), [lit(neg, Atm) | Cla]),
+    ln(none, inst(InstA, abs(PremNumA)), ClaA) ]) :-
+  ( (PremNumA = NumA, PremNumB = NumB) ; 
+    (PremNumA = NumB, PremNumB = NumA) ),
+  % Get premise lns
+  member(ln(PremNumA, _, ClaA0), Lns),
+  member(ln(PremNumB, _, ClaB1), Lns),
+  % Disjoin first premise from second
+  disjoiner(ClaA0, ClaB1, Dsj),
+  subst_cla(Dsj, ClaA0, ClaA1),
+  % Choose literals to resolve on
+  pluck([], ClaA1, lit(neg, AtmA0), ClaA2),
+  pluck([], ClaB1, lit(pos, AtmB0), ClaB2),
+  % Find mappings
+  unif_atm(AtmA0, AtmB0, Unf),
+  append(ClaA2, ClaB2, Cla0),
+  subst_cla(Unf, Cla0, Cla1),
+  calc_inst_cla(Cla1, Cla, Inst),
+  compress_compose_insts(ClaA0, [Dsj, Unf, Inst], InstA),
+  compress_compose_insts(ClaB1, [Unf, Inst], InstB),
+  % Unify return values
+  subst_atm(Unf, AtmA0, AtmA1),
+  subst_atm(Inst, AtmA1, Atm),
+  subst_cla(InstA, ClaA0, ClaA),
+  subst_cla(InstB, ClaB1, ClaB).
+
+expl_ln(Mat, _, ln(LnNum, hyp, Cla), 
+  [ ln(LnNum, sub(rel(0)), Cla), 
+    ln(none, inst(Inst, rel(0)), ClaA1),
+    ln(none, hyp(ClaNum), ClaA0) ]) :-
+  nth0(ClaNum, Mat, ClaA0),
+  calc_inst_cla(ClaA0, Cla, Inst),
+  subst_cla(Inst, ClaA0, ClaA1).
+
+expl_lns(Mat, Lns, Prf) :-
+  maplist(expl_ln(Mat, Lns), Lns, Prfs),
+  append(Prfs, Prf).
+
+expl_lns(Mat, Lns, expl_lns_error(Mat, Lns)). 
+
+main([Argv]) :-
+  string_chars(Argv, Chs),
+  parse_inp([], Chs, Mat),
+  temp_loc(Loc),
+  write_goal(Loc, Mat),
+  read_proof(Loc, Lns),
+  expl_lns(Mat, Lns, RawPrf),
+
+  % compress(RawPrf, Prf),
+  % lnarize_prf(Prf, RawStr),
+  % string_block(RawStr, Str),
+  write(RawPrf).
+
+/*
+cmpl(Mat, _, Tgt, hyp, Prf) :-
+  nth0(Num, Mat, Cla),
+  cmpl_map(hyp(Num, Cla), Tgt, Prf).
+
+cmpl(Mat, Lns, Tgt, res(NumA, NumB), Prf) :-
+  cmpl(Mat, Lns, NumA, PrfA),
+  cmpl(Mat, Lns, NumB, PrfB),
   conc(PrfA, CncA),
   conc(PrfB, CncB),
   tor(CncA, IdxA, CncA1),
   tor(CncB, IdxB, CncB1),
   PrfA1 = rot(IdxA, PrfA, CncA1),
   PrfB1 = rot(IdxB, PrfB, CncB1),
-  ( compile_res(PrfA1, PrfB1, SubPrf) ;
-    compile_res(PrfB1, PrfA1, SubPrf) ),
-  compile_map(SubPrf, Tgt, Prf).
+  ( cmpl_res(PrfA1, PrfB1, SubPrf) ;
+    cmpl_res(PrfB1, PrfA1, SubPrf) ),
+  cmpl_map(SubPrf, Tgt, Prf).
 
-compile(Mat, Lns, Tgt, rep(NumA, NumB), Prf) :-
-  compile(Mat, Lns, NumA, PrfA),
-  compile(Mat, Lns, NumB, PrfB),
-  compile_rep(PrfA, PrfB, Tgt, Prf).
+cmpl(Mat, Lns, Tgt, rep(NumA, NumB), Prf) :-
+  cmpl(Mat, Lns, NumA, PrfA),
+  cmpl(Mat, Lns, NumB, PrfB),
+  cmpl_rep(PrfA, PrfB, Tgt, Prf).
 
-compile(Mat, Lns, Tgt, eqres(Num), Prf) :-
-  compile(Mat, Lns, Num, Prf1),
+cmpl(Mat, Lns, Tgt, eqres(Num), Prf) :-
+  cmpl(Mat, Lns, Num, Prf1),
   conc(Prf1, Cnc1),
   tor(Cnc1, Idx, Cnc2), 
   Cnc2 = [lit(neg, eq(TrmA, TrmB)) | _],
@@ -361,27 +476,27 @@ compile(Mat, Lns, Tgt, eqres(Num), Prf) :-
   Cnc3 = [lit(neg, eq(Trm, Trm)) | Tl],
   Prf3 = sub(Unf, Prf2, Cnc3),
   Prf4 = trv(Prf3, Tl),
-  compile_map(Prf4, Tgt, Prf).
+  cmpl_map(Prf4, Tgt, Prf).
 
-compile(Mat, Lns, Tgt, trv(Num), trv(Prf, Tgt)) :-
-  compile(Mat, Lns, Num, Prf),
+cmpl(Mat, Lns, Tgt, trv(Num), trv(Prf, Tgt)) :-
+  cmpl(Mat, Lns, Num, Prf),
   conc(Prf, [lit(neg, eq(Trm, Trm)) | Tgt]).
 
-compile(Mat, Lns, Tgt, map(Num), Prf) :-
-  compile(Mat, Lns, Num, SubPrf),
-  compile_map(SubPrf, Tgt, Prf).
+cmpl(Mat, Lns, Tgt, map(Num), Prf) :-
+  cmpl(Mat, Lns, Num, SubPrf),
+  cmpl_map(SubPrf, Tgt, Prf).
 
-compile(Mat, Lns, Num, Prf) :-
-  member(line(Num, Tgt, Rul), Lns),
-  compile(Mat, Lns, Tgt, Rul, Prf).
+cmpl(Mat, Lns, Num, Prf) :-
+  member(ln(Num, Tgt, Rul), Lns),
+  cmpl(Mat, Lns, Tgt, Rul, Prf).
 
-compile(Mat, Lns, Prf) :-
+cmpl(Mat, Lns, Prf) :-
   length(Lns, Lth),
   Idx is Lth - 1,
-  nth0(Idx, Lns, line(_, [], Rul)),
-  compile(Mat, Lns, [], Rul, Prf).
+  nth0(Idx, Lns, ln(_, [], Rul)),
+  cmpl(Mat, Lns, [], Rul, Prf).
 
-compile(Mat, Lns, compile_error(Mat, Lns)).
+cmpl(Mat, Lns, cmpl_error(Mat, Lns)).
 
 string_block(Str, Blk) :-
   break_string(60, Str, Strs),
@@ -475,89 +590,78 @@ proof_string(Prf, Str) :-
 
 proof_string(Prf, print_error(Prf)).
 
-temp_loc("/var/tmp/temp_goal_file").
-
-line_string(line(Num, Cla, Rul), Str) :-
+ln_string(ln(Num, Cla, Rul), Str) :-
   number_string(Num, NumStr),
   cla_string(Cla, ClaStr),
   term_string(Rul, RulStr),
   join_string([NumStr, ". ", ClaStr, " [", RulStr, "]"], Str).
 
-lines_string(Lns, Str) :-
-  maplist(line_string, Lns, Strs),
+lns_string(Lns, Str) :-
+  maplist(ln_string, Lns, Strs),
   string_codes(Nl, [10]),
   join_string(Strs, Nl, Str).
 
-linearize_trms([], "n").
+lnarize_trms([], "n").
 
-linearize_trms([Trm | Trms], Str) :-
-  linearize_trms(Trms, TrmsStr),
-  linearize_trm(Trm, TrmStr),
+lnarize_trms([Trm | Trms], Str) :-
+  lnarize_trms(Trms, TrmsStr),
+  lnarize_trm(Trm, TrmStr),
   join_string([TrmsStr, TrmStr, "c"], Str).
 
-linearize_trm(var(Num), Str) :-
+lnarize_trm(var(Num), Str) :-
   number_binstr(Num, NumStr),
   join_string(["b", NumStr, "v"], Str).
 
-linearize_trm(fn(Num, Trms), Str) :-
+lnarize_trm(fn(Num, Trms), Str) :-
   number_binstr(Num, NumStr),
-  linearize_trms(Trms, TrmsStr), 
+  lnarize_trms(Trms, TrmsStr), 
   join_string([TrmsStr, "b", NumStr, "f"], Str).
 
-linearize_maps([], "n").
+lnarize_maps([], "n").
 
-linearize_maps([map(Num, Trm) | Maps], Str) :-
+lnarize_maps([map(Num, Trm) | Maps], Str) :-
   number_binstr(Num, NumStr),
-  linearize_trm(Trm, TrmStr),
-  linearize_maps(Maps, SubStr),
+  lnarize_trm(Trm, TrmStr),
+  lnarize_maps(Maps, SubStr),
   join_string([SubStr, TrmStr, "b", NumStr, "mc"], Str).
 
-linearize_prf(hyp(Num, _), Str) :-
+lnarize_prf(hyp(Num, _), Str) :-
   number_binstr(Num, NumStr),
   join_string(["b", NumStr, "H"], Str).
 
-linearize_prf(res(PrfA, PrfB, _), Str) :-
-  linearize_prf(PrfA, StrA),
-  linearize_prf(PrfB, StrB),
+lnarize_prf(res(PrfA, PrfB, _), Str) :-
+  lnarize_prf(PrfA, StrA),
+  lnarize_prf(PrfB, StrB),
   join_string([StrA, StrB, "R"], Str).
 
-linearize_prf(rep(PrfA, PrfB, _), Str) :-
-  linearize_prf(PrfA, StrA),
-  linearize_prf(PrfB, StrB),
+lnarize_prf(rep(PrfA, PrfB, _), Str) :-
+  lnarize_prf(PrfA, StrA),
+  lnarize_prf(PrfB, StrB),
   join_string([StrA, StrB, "P"], Str).
 
-linearize_prf(rot(Num, Prf, _), Str) :-
+lnarize_prf(rot(Num, Prf, _), Str) :-
   number_binstr(Num, NumStr),
-  linearize_prf(Prf, PrfStr),
+  lnarize_prf(Prf, PrfStr),
   join_string([PrfStr, "b", NumStr, "T"], Str).
 
-linearize_prf(sub(Maps, Prf, _), Str) :-
-  linearize_maps(Maps, MapsStr),
-  linearize_prf(Prf, PrfStr),
+lnarize_prf(sub(Maps, Prf, _), Str) :-
+  lnarize_maps(Maps, MapsStr),
+  lnarize_prf(Prf, PrfStr),
   join_string([PrfStr, MapsStr, "S"], Str).
 
-linearize_prf(sym(Prf, _), Str) :-
-  linearize_prf(Prf, PrfStr),
+lnarize_prf(sym(Prf, _), Str) :-
+  lnarize_prf(Prf, PrfStr),
   join_string([PrfStr, "Y"], Str).
 
-linearize_prf(trv(Prf, _), Str) :-
-  linearize_prf(Prf, PrfStr),
+lnarize_prf(trv(Prf, _), Str) :-
+  lnarize_prf(Prf, PrfStr),
   join_string([PrfStr, "V"], Str).
 
-linearize_prf(cnt(Prf, _), Str) :-
-  linearize_prf(Prf, PrfStr),
+lnarize_prf(cnt(Prf, _), Str) :-
+  lnarize_prf(Prf, PrfStr),
   join_string([PrfStr, "C"], Str).
 
-linearize_prf(_, "linearize_error").
- 
-main([Argv]) :-
-  string_chars(Argv, Chs),
-  parse_inp([], Chs, Mat),
-  temp_loc(Loc),
-  write_goal(Loc, Mat),
-  read_proof(Loc, Lns),
-  compile(Mat, Lns, RawPrf),
-  compress(RawPrf, Prf),
-  linearize_prf(Prf, RawStr),
-  string_block(RawStr, Str),
-  write(Str).
+lnarize_prf(_, "lnarize_error").
+
+*/
+

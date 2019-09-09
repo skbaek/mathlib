@@ -71,14 +71,7 @@ rot(Idx, [Hd | Tl], [NewHd, Hd | NewTl]) :-
   NewIdx is Idx - 1,
   rot(NewIdx, Tl, [NewHd | NewTl]).
 
-conc(hyp(_, Cnc), Cnc).
-conc(res(_, _, Cnc), Cnc).
-conc(rot(_, _, Cnc), Cnc).
-conc(cnt(_, Cnc), Cnc).
-conc(sub(_, _, Cnc), Cnc).
-conc(rep(_, _, Cnc), Cnc).
-conc(sym(_, Cnc), Cnc).
-conc(trv(_, Cnc), Cnc).
+conc([line(_, _, Cnc) | _], Cnc).
 
 union_list([], []).
 
@@ -108,37 +101,66 @@ vars_cla(Cla, Nums) :-
   maplist(vars_lit, Cla, Numss),
   union(Numss, Nums).
 
-subst_trms(Maps, Trms, NewTrms) :-
-  maplist(subst_trm(Maps), Trms, NewTrms).
+subst_trms(Inst, Trms, NewTrms) :-
+  maplist(subst_trm(Inst), Trms, NewTrms).
 
-subst_trm(Maps, var(Num), var(Num)) :-
-  not(member(map(Num, _), Maps)).
+subst_trm(Inst, var(Num), var(Num)) :-
+  not(member(map(Num, _), Inst)).
 
-subst_trm(Maps, var(Num), Trm) :-
-  member(map(Num, Trm), Maps), !.
+subst_trm(Inst, var(Num), Trm) :-
+  member(map(Num, Trm), Inst), !.
 
-subst_trm(Maps, fn(Num, Trms), fn(Num, NewTrms)) :-
-  subst_trms(Maps, Trms, NewTrms).
+subst_trm(Inst, fn(Num, Trms), fn(Num, NewTrms)) :-
+  subst_trms(Inst, Trms, NewTrms).
 
-subst_atm(Maps, eq(SrcTrmA, SrcTrmB), eq(TgtTrmA, TgtTrmB)) :-
-  subst_trm(Maps, SrcTrmA, TgtTrmA),
-  subst_trm(Maps, SrcTrmB, TgtTrmB).
+subst_atm(Inst, eq(SrcTrmA, SrcTrmB), eq(TgtTrmA, TgtTrmB)) :-
+  subst_trm(Inst, SrcTrmA, TgtTrmA),
+  subst_trm(Inst, SrcTrmB, TgtTrmB).
 
-subst_atm(Maps, rl(Num, Trms), rl(Num, NewTrms)) :-
-  subst_trms(Maps, Trms, NewTrms).
+subst_atm(Inst, rl(Num, Trms), rl(Num, NewTrms)) :-
+  subst_trms(Inst, Trms, NewTrms).
 
 subst_lit(Map, lit(Pol, SrcAtm), lit(Pol, TgtAtm)) :-
   subst_atm(Map, SrcAtm, TgtAtm).
 
-subst_cla(Maps, Cla, NewCla) :-
-  maplist(subst_lit(Maps), Cla, NewCla).
+subst_cla(Inst, Cla, NewCla) :-
+  maplist(subst_lit(Inst), Cla, NewCla).
 
 update_map(Map, map(Src, Tgt), map(Src, NewTgt)) :-
   subst_trm(Map, Tgt, NewTgt).
 
-update_maps(FstMaps, SndMaps, NewFstMaps) :-
-  maplist(update_map(SndMaps), FstMaps, NewFstMaps).
+update_inst(FstInst, SndInst, NewFstInst) :-
+  maplist(update_map(SndInst), FstInst, NewFstInst).
 
-compose_maps(FstMaps, SndMaps, Maps) :-
-  update_maps(FstMaps, SndMaps, NewFstMaps),
-  append(NewFstMaps, SndMaps, Maps).
+compose_inst(FstInst, SndInst, Inst) :-
+  update_inst(FstInst, SndInst, NewFstInst),
+  append(NewFstInst, SndInst, Inst).
+
+compose_insts([Inst], Inst). 
+
+compose_insts([Inst | Insts], NewInst) :-
+  compose_insts(Insts, TmpInst),
+  compose_inst(Inst, TmpInst, NewInst). 
+
+relevant(Vars, map(Num, _)) :-
+  member(Num, Vars).
+
+src(Num, map(Num, _)).
+
+rm_red_inst([], []).
+
+rm_red_inst([map(Num, Trm) | Inst], [(Num, Trm) | NewInst]) :- 
+  exclude(src(Num), Inst, TmpInst),
+  rm_red_inst(TmpInst, NewInst).
+
+is_id(map(Num, var(Num))).
+
+compress_inst(Cla, Inst, NewInst) :-
+  rm_red_inst(Inst, Inst1),
+  exclude(is_id, Inst1, Inst2),
+  vars_cla(Cla, Vrs),
+  include(relevant(Vrs), Inst2, NewInst).
+
+compress_compose_insts(Cla, Insts, Inst) :-
+  compose_insts(Insts, TmpInst),
+  compress_inst(Cla, TmpInst, Inst).

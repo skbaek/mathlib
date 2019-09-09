@@ -379,29 +379,84 @@ do πx ← build_proof_core m m.to_expr [] chs,
      [αx, ix, rnx, Rx, fnx, Fx, fx, hx, πx],
    return x
 
-meta def vampire (inp : option string) : tactic unit :=
+meta def vampire : tactic unit :=
 do desugar,
    αx ← get_domain,
    ix ← get_inhabitance αx,
    f  ← reify αx,
    let m := clausify f,
-   s ← (inp <|> get_asm m),
-   x ← build_proof s.data αx ix f m,
-   apply x,
-   if inp = none
-   then trace s
-   else skip
+   s ← get_asm m,
+   -- s ← (inp <|> get_asm m),
+   -- x ← build_proof s.data αx ix f m,
+   -- apply x,
+   -- if inp = none
+   -- then trace s
+   -- else skip
+   trace s
  
+example (A B : Prop) : A ∧ B → B ∧ A :=
+by vampire
+
+#exit
+variables [inhabited α]
+variables (a c : α) (p q : α → Prop) (r : α → α → Prop)
+
+example : (∀ x, p x → q x) → (∀ x, p x) → q a :=
+by vampire 
+
+example : (∃ x, p x ∧ r x x) → (∀ x, r x x → q x) → ∃ x, p x ∧ q x :=
+by vampire
+
+lemma gilmore_6 {F G : α → α → Prop} {H : α → α → α → Prop} :
+∀ x, ∃ y,
+  (∃ u, ∀ v, F u x → G v u ∧ G u x)
+   → (∃ u, ∀ v, F u y → G v u ∧ G u y) ∨
+       (∀ u v, ∃ w, G v u ∨ H w y u → G u w) :=
+by vampire
+
+lemma manthe_and_bry (agatha butler charles : α)
+(lives : α → Prop) (killed hates richer : α → α → Prop) :
+   lives agatha ∧ lives butler ∧ lives charles ∧
+   (killed agatha agatha ∨ killed butler agatha ∨
+    killed charles agatha) ∧
+   (∀ x y, killed x y → hates x y ∧ ¬ richer x y) ∧
+   (∀ x, hates agatha x → ¬ hates charles x) ∧
+   (hates agatha agatha ∧ hates agatha charles) ∧
+   (∀ x, lives(x) ∧ ¬ richer x agatha → hates butler x) ∧
+   (∀ x, hates agatha x → hates butler x) ∧
+   (∀ x, ¬ hates x agatha ∨ ¬ hates x butler ∨ ¬ hates x charles)
+   → killed agatha agatha ∧
+       ¬ killed butler agatha ∧
+       ¬ killed charles agatha :=
+by vampire
+
+lemma knights_and_knaves (me : α) (knight knave rich poor : α → α)
+  (a_truth says : α → α → Prop) (and : α → α → α) :
+  ( (∀ X Y, ¬ a_truth (knight X) Y ∨ ¬ a_truth (knave X) Y ) ∧
+    (∀ X Y, a_truth (knight X) Y ∨ a_truth (knave X) Y ) ∧
+    (∀ X Y, ¬ a_truth (rich X) Y ∨ ¬ a_truth (poor X) Y ) ∧
+    (∀ X Y, a_truth (rich X) Y ∨ a_truth (poor X) Y ) ∧
+    (∀ X Y Z, ¬ a_truth (knight X) Z ∨ ¬ says X Y ∨ a_truth Y Z ) ∧
+    (∀ X Y Z, ¬ a_truth (knight X) Z ∨ says X Y ∨ ¬ a_truth Y Z ) ∧
+    (∀ X Y Z, ¬ a_truth (knave X) Z ∨ ¬ says X Y ∨ ¬ a_truth Y Z ) ∧
+    (∀ X Y Z, ¬ a_truth (knave X) Z ∨ says X Y ∨ a_truth Y Z ) ∧
+    (∀ X Y Z, ¬ a_truth (and X Y) Z ∨ a_truth X Z ) ∧
+    (∀ X Y Z, ¬ a_truth (and X Y) Z ∨ a_truth Y Z ) ∧
+    (∀ X Y Z, a_truth (and X Y) Z ∨ ¬ a_truth X Z ∨ ¬ a_truth Y Z ) ∧
+    (∀ X, ¬ says me X ∨ ¬ a_truth (and (knave me) (rich me)) X ) ∧
+    (∀ X, says me X ∨ a_truth (and (knave me) (rich me)) X ) ) → false :=
+by vampire
+
 end vampire
  
-open lean.parser interactive vampire tactic
-
-meta def tactic.interactive.vampire
-  (ids : parse (many ident))
-  (inp : option string := none) : tactic unit :=
-( if `all ∈ ids
-  then local_context >>= monad.filter is_proof >>=
-       revert_lst >> skip
-  else do hs ← mmap tactic.get_local ids,
-               revert_lst hs, skip ) >>
-vampire.vampire inp
+-- open lean.parser interactive vampire tactic
+-- 
+-- meta def tactic.interactive.vampire
+--   (ids : parse (many ident))
+--   (inp : option string := none) : tactic unit :=
+-- ( if `all ∈ ids
+--   then local_context >>= monad.filter is_proof >>=
+--        revert_lst >> skip
+--   else do hs ← mmap tactic.get_local ids,
+--                revert_lst hs, skip ) >>
+-- vampire.vampire inp
