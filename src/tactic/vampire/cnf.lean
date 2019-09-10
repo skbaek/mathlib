@@ -48,6 +48,9 @@ def cnf : frm → mat
 
 namespace lit 
 
+def equiv : lit → lit → Prop 
+| (b1, l1) (b2, l2) := b1 = b2 ∧ atm.equiv l1 l2
+
 def vsubs (μs : vmaps) : lit → lit 
 | (b, a):= (b, a.vsubs μs)
 
@@ -77,6 +80,8 @@ by rintro ⟨_ | _, a⟩;
 end lit
 
 namespace cla
+
+def sub (c d : cla) : Prop := ∀ l1 ∈ c, ∃ l2 ∈ d, lit.equiv l1 l2
 
 def tautology : cla := [(tt, atm.default)]
 

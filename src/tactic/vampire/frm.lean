@@ -460,6 +460,12 @@ local notation t `=*` s := atm.eq t s
 
 namespace atm
 
+def equiv : atm → atm → Prop 
+| (r* k ts)  (r* m ss)  := k = m ∧ ts = ss
+| (r* _ _)   (_ =* _)   := false
+| (_ =* _)   (r* _ _)   := false
+| (t1 =* s1) (t2 =* s2) := (t1 = t2 ∧ s1 = s2) ∨ (t1 = s2 ∧ s1 = t2)
+
 def repr : atm → string
 | (atm.rl k ts) := "r" ++ k.to_subs ++ string.tuplize (ts.map trm.repr)
 | (atm.eq t s) := t.repr ++ " = " ++ s.repr

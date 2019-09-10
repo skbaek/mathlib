@@ -56,30 +56,6 @@ meta def get_inhabitance (αx : expr) : tactic expr :=
 do ihx ← tactic.to_expr ``(inhabited),
    tactic.mk_instance (expr.app ihx αx)
 
-variables {α : Type} 
-
-inductive proof (m : mat) : cla → Type
-| H (k : nat) : proof (m.nth k)
-| C (l : lit) (c : cla) :
-  proof (l :: l :: c) → proof (l :: c)
-| R (a : atm) (c d : cla) :
-  proof ((ff, a) :: c) →
-  proof ((tt, a) :: d) →
-  proof (c ++ d)
-| S (μs : vmaps) (c : cla) : 
-  proof c → proof (c.vsubs μs)
-| T (k : nat) (c : cla) :
-  proof c → proof (c.rot k)
-| P (l : lit) (t s : trm) (c d : cla) :
-  proof (l :: c) →
-  proof (((tt, t =* s) :: d)) →
-  proof (l.replace t s :: c ++ d)
-| Y (b : bool) (t s : trm) (c : cla) :
-  proof ((b, t =* s) :: c) → 
-  proof ((b, s =* t) :: c)
-| V (t : trm) (c : cla) :
-  proof ((ff, t =* t) :: c) → proof c
-
 /- Same as is.fs.read_to_end and io.cmd,
    except for configurable read length. -/
 def io.fs.read_to_end' (h : io.handle) : io char_buffer :=
@@ -98,6 +74,26 @@ do child ← io.proc.spawn { stdout := io.process.stdio.piped, ..args },
   exitv ← io.proc.wait child,
   when (exitv ≠ 0) $ io.fail $ "process exited with status " ++ repr exitv,
   return buf.to_string
+
+variables {α : Type} 
+
+inductive proof (m : mat) : cla → Type
+| H (k : nat) : proof (m.nth k)
+| R (a : atm) (c : cla) :
+  proof ((ff, a) :: c) →
+  proof ((tt, a) :: c) →
+  proof c
+| I (μs : vmaps) (c : cla) : 
+  proof c → proof (c.vsubs μs)
+| P (l : lit) (t s : trm) (c : cla) :
+  proof (l :: c) →
+  proof (((tt, t =* s) :: c)) →
+  proof (l.replace t s :: c)
+| V (t : trm) (c : cla) :
+  proof ((ff, t =* t) :: c) → proof c
+| S (c d : cla) : 
+  cla.sub c d → proof c → proof d
+
 open tactic
 
 universe u
@@ -177,6 +173,7 @@ meta def vmaps.to_expr : vmaps → expr
 
 set_option eqn_compiler.max_steps 4096
 
+/-
 meta def build_proof_core (m : mat) (mx : expr) :
   list item → list char → tactic expr
 | (item.prf x _ :: stk) [] := return x
@@ -244,7 +241,7 @@ meta def build_proof_core (m : mat) (mx : expr) :
   trace "Stack top : " >> trace X >>
   trace "Remaining proof" >> trace chs >> failed
 | [] chs := trace "Stack empty, remaining proof : " >> trace chs >> failed
-
+-/
 
 variables {R : rls α} {F : fns α} {V : vas α}
 variables {b : bool} (f g : frm)
@@ -279,13 +276,15 @@ begin
   intros c π, 
   induction π with
     k 
-    l d π h1
-    t c1 c2 π1 π2 h1 h2
+    t c π1 π2 h1 h2
     μs c π h1
-    k d π h1
-    l t s c d π σ h1 h2
-    b t s d h1 h2
-    t d h1 h2,
+    l t s c π σ h1 h2
+    t d h1 h2
+    c d h1 π h2
+    --k d π h1
+    --b t s d h1 h2
+    ,
+    /-
   { unfold mat.nth,
     cases h1 : list.nth m k;
     unfold option.get_or_else,
@@ -335,6 +334,7 @@ begin
     { rw h2 at h3,
       exfalso, apply h3 rfl },
     refine ⟨l, h2, h3⟩ }
+    -/
 end
 
 lemma frxffx_of_proof [inhabited α]
