@@ -3,19 +3,19 @@
 comma(StrA, StrB, Str) :-
   join_string([StrB, ", ", StrA], Str).
 
-tuple_string([], ""). 
+tuple_string([], "").
 
 tuple_string([Str | Strs], TupStr) :-
   foldl(comma, Strs, Str, Tmp),
   join_string(["(", Tmp, ")"], TupStr).
 
-tptp_trms([], ""). 
+tptp_trms([], "").
 
 tptp_trms(Trms, Str) :-
   maplist(tptp_trm, Trms, TrmStrs),
   tuple_string(TrmStrs, Str).
 
-tptp_trm(var(Num), Str) :-
+tptp_trm(vr(Num), Str) :-
   number_string(Num, NumStr),
   string_concat("X", NumStr, Str).
 

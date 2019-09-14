@@ -100,24 +100,24 @@ parse_trm(Str, fn(Num, Trms), Rem) :-
   parse_num(Str1, Num, Str2),
   parse_args(Str2, Trms, Rem).
 
-parse_trm(Str, var(Num), Rem) :-
+parse_trm(Str, vr(Num), Rem) :-
   string_concat("X", Str1, Str),
   parse_num(Str1, Num, Rem).
 
 parse_atm(Str, rl(Num, Trms), Rem) :-
-  string_concat("r", Str1, Str), 
+  string_concat("r", Str1, Str),
   parse_num(Str1, Num, Str2),
   parse_args(Str2, Trms, Rem).
 
 parse_atm(Str, eq(TrmA, TrmB), Rem) :-
-  parse_trm(Str, TrmA, Str1), 
+  parse_trm(Str, TrmA, Str1),
   string_concat(" = ", Str2, Str1),
-  parse_trm(Str2, TrmB, Rem). 
+  parse_trm(Str2, TrmB, Rem).
 
 parse_atm(Str, ne(TrmA, TrmB), Rem) :-
-  parse_trm(Str, TrmA, Str1), 
+  parse_trm(Str, TrmA, Str1),
   string_concat(" != ", Str2, Str1),
-  parse_trm(Str2, TrmB, Rem). 
+  parse_trm(Str2, TrmB, Rem).
 
 parse_lit_core(Str, lit(neg, Atm)) :-
   string_concat("~", Tmp, Str),
@@ -129,14 +129,14 @@ parse_lit_core(Str, lit(pos, Atm)) :-
 negate(neg, pos).
 negate(pos, neg).
 
-rmv_ne(TmpPol, ne(TrmA, TrmB), Pol, eq(TrmA, TrmB)) :- 
+rmv_ne(TmpPol, ne(TrmA, TrmB), Pol, eq(TrmA, TrmB)) :-
   !, negate(TmpPol, Pol).
 
-rmv_ne(Pol, Atm, Pol, Atm). 
+rmv_ne(Pol, Atm, Pol, Atm).
 
 parse_lit(Str, lit(Pol, Atm)) :-
   parse_lit_core(Str, lit(TmpPol, TmpAtm)),
-  rmv_ne(TmpPol, TmpAtm, Pol, Atm). 
+  rmv_ne(TmpPol, TmpAtm, Pol, Atm).
 
 parse_cla("$false", []) :- !.
 

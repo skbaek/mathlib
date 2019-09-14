@@ -60,32 +60,32 @@ lemma exists_mem_map_iff
   end
 
 def try (f : α → option β) : list α → option β
-| []        := none 
+| []        := none
 | (a :: as) := f a <|> try as
 
-lemma map_eq_map_of_forall_mem_eq {f g : α → β} : 
-  ∀ {as : list α}, (∀ a ∈ as, f a = g a) → as.map f = as.map g 
+lemma map_eq_map_of_forall_mem_eq {f g : α → β} :
+  ∀ {as : list α}, (∀ a ∈ as, f a = g a) → as.map f = as.map g
 | []        _  := rfl
-| (a :: as) h0 := 
+| (a :: as) h0 :=
   by { unfold map,
        rw [ h0 _ (or.inl rfl),
             map_eq_map_of_forall_mem_eq ],
        intros x h1,
        apply h0 _ (or.inr h1) }
-      
-lemma forall_mem_map_of_forall_mem 
+
+lemma forall_mem_map_of_forall_mem
   {p : α → Prop} {q : β → Prop} {f : α → β} (h0 : ∀ a : α, p a → q (f a)) :
   ∀ as : list α, (∀ a ∈ as, p a) → (∀ b ∈ as.map f, q b)
 | [] _ _ h2 := by cases h2
-| (a :: as) h1 b h2 := 
+| (a :: as) h1 b h2 :=
   by { cases h2,
-       { rw h2, apply h0, 
+       { rw h2, apply h0,
          apply h1 _ (or.inl rfl) },
        apply forall_mem_map_of_forall_mem as _ _ h2,
        apply forall_mem_of_forall_mem_cons h1 }
 
 def orelse : list (option α) → option α
-| []        := none 
+| []        := none
 | (a :: as) := a <|> orelse as
 
 def disj (ps : list Prop) : Prop := ∃ p ∈ ps, p
@@ -95,16 +95,16 @@ lemma disj_cons (p : Prop) (ps : list Prop) :
   (p :: ps).disj ↔ p ∨ ps.disj :=
 by { unfold disj, rw exists_mem_cons_iff }
 
-def suffix : nat → list α → list α → Prop 
-| 0       as1 as2        := as1 = as2 
-| (k + 1) as1 (_ :: as2) := suffix k as1 as2 
+def suffix : nat → list α → list α → Prop
+| 0       as1 as2        := as1 = as2
+| (k + 1) as1 (_ :: as2) := suffix k as1 as2
 | (k + 1) _   []         := false
 
 lemma nth_eq_some_of_cons_suffix {a1 : α} {as1 : list α} :
   ∀ {k : nat} {as2 : list α},
   suffix k (a1 :: as1) as2 → as2.nth k = some a1
 | 0       (a2 :: as2) h0 := by { cases h0, refl }
-| (k + 1) (_ :: as2)  h0 := 
+| (k + 1) (_ :: as2)  h0 :=
   begin
     unfold nth,
     apply nth_eq_some_of_cons_suffix,
@@ -113,16 +113,39 @@ lemma nth_eq_some_of_cons_suffix {a1 : α} {as1 : list α} :
 
 lemma suffix_succ_of_suffix_cons {a1 : α} {as1 : list α} :
   ∀ {k : nat} {as2 : list α},
-  suffix k (a1 :: as1) as2 → suffix (k + 1) as1 as2 
-| 0 (_ :: as2) h0 := 
+  suffix k (a1 :: as1) as2 → suffix (k + 1) as1 as2
+| 0 (_ :: as2) h0 :=
   begin
     cases h0, unfold suffix,
   end
-| (k + 1) (_ :: as2) h0 := 
+| (k + 1) (_ :: as2) h0 :=
   begin
     unfold suffix,
     apply suffix_succ_of_suffix_cons,
     apply h0
   end
+
+variables (p : α → Prop)
+
+instance decidable_ex_mem [decidable_pred p] : ∀ (l : list α), decidable (∃ x ∈ l, p x)
+| []        := decidable.is_false (λ h, by rcases h with ⟨_, ⟨_⟩, _⟩)
+| (a :: as) :=
+  if h0 : p a
+  then decidable.is_true ⟨a, or.inl rfl, h0⟩
+  else match decidable_ex_mem as with
+       | (decidable.is_true h1)  :=
+         decidable.is_true (exists_mem_cons_of_exists h1)
+       | (decidable.is_false h1) :=
+         decidable.is_false
+         (λ h2, by { rcases h2 with ⟨x, h2 | h2, h3⟩,
+           { apply h0 (eq.rec h3 h2) },
+           apply h1 ⟨x, h2, h3⟩ })
+       end
+
+instance decidable_fa_mem [decidable_pred p] (l : list α) : decidable (∀ x ∈ l, p x) :=
+if h : ∃ x ∈ l, ¬ p x then
+  is_false $ let ⟨x, h, np⟩ := h in λ al, np (al x h)
+else
+  is_true $ λ x hx, if h' : p x then h' else false.elim $ h ⟨x, hx, h'⟩
 
 end list

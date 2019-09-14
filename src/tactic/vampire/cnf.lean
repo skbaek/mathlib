@@ -46,18 +46,18 @@ def cnf : frm → mat
 | (f ∧* g)      := (cnf f) ++ (cnf g)
 | (frm.qua _ _) := []
 
-namespace lit 
+namespace lit
 
-def equiv : lit → lit → Prop 
+def equiv : lit → lit → Prop
 | (b1, l1) (b2, l2) := b1 = b2 ∧ atm.equiv l1 l2
 
-def vsubs (μs : vmaps) : lit → lit 
+def vsubs (μs : vmaps) : lit → lit
 | (b, a):= (b, a.vsubs μs)
 
 meta def to_expr : lit → expr
 | (b, a) := expr.mk_app `(@prod.mk bool atm) [b.to_expr, a.to_expr]
 
-def holds (R : rls α) (F : fns α) (V : vas α) : lit → Prop 
+def holds (R : rls α) (F : fns α) (V : vas α) : lit → Prop
 | (ff, a):= ¬ a.holds R F V
 | (tt, a):=   a.holds R F V
 
@@ -65,23 +65,46 @@ def repr : lit → string
 | (ff, a):= "¬" ++ a.repr
 | (tt, a):=        a.repr
 
-def replace (t s : trm) : lit → lit 
+def replace (t s : trm) : lit → lit
 | (b, a) := (b, a.replace t s)
 
 instance has_repr : has_repr lit := ⟨repr⟩
 
-lemma holds_replace {r u : trm} 
-  (h0 : r.val F V = u.val F V) : 
+lemma holds_replace {r u : trm}
+  (h0 : r.val F V = u.val F V) :
   ∀ l : lit, (l.replace r u).holds R F V ↔ l.holds R F V :=
-by rintro ⟨_ | _, a⟩; 
+by rintro ⟨_ | _, a⟩;
    unfold replace; unfold holds;
    rw atm.holds_replace h0
+
+lemma holds_iff_holds_of_equiv :
+  ∀ {l1 l2 : lit}, equiv l1 l2 → (l1.holds R F V ↔ l2.holds R F V)
+| (b1, a1) (b2, a2) h0 :=
+  begin
+    cases h0 with h0 h1,
+    rw h0, cases b2; unfold holds;
+    rw atm.holds_iff_holds_of_equiv h1,
+  end
+
+lemma holds_vsubs (μs : vmaps) (l : lit) :
+  (l.vsubs μs).holds R F V ↔
+  l.holds R F (V.vsubs F μs) :=
+begin
+  cases l with b a; cases b;
+  simp only [ lit.holds, lit.vsubs, atm.holds_vsubs ]
+end
+
+instance equiv_decidable : decidable_rel lit.equiv
+| (b1, a1) (b2, a2) := and.decidable
 
 end lit
 
 namespace cla
 
-def sub (c d : cla) : Prop := ∀ l1 ∈ c, ∃ l2 ∈ d, lit.equiv l1 l2
+@[reducible] def subsumes (c d : cla) : Prop := ∀ l1 ∈ c, ∃ l2 ∈ d, lit.equiv l1 l2
+
+instance subsumes_decidable : decidable_rel subsumes :=
+λ c d, @list.decidable_fa_mem lit _ (λ l, @list.decidable_ex_mem lit (lit.equiv l) _ d) c
 
 def tautology : cla := [(tt, atm.default)]
 
@@ -95,10 +118,27 @@ meta def to_expr : cla → expr
 def holds (R : rls α) (F : fns α) (V : vas α) (c : cla) : Prop :=
 ∃ l ∈ c, lit.holds R F V l
 
-def repr : cla → string 
-| []  := ""
+def repr : cla → string
+| []  := "⊥"
 | [l] := l.repr
 | (l :: ls) := l.repr ++ " | " ++ repr ls
+
+lemma holds_of_subsumes {c d : cla} :
+  subsumes c d → holds R F V c → holds R F V d :=
+begin
+  intros h0 h1,
+  rcases h1 with ⟨l, h1, h2⟩,
+  rcases h0 l h1 with ⟨w, h3, h4⟩,
+  refine ⟨w, h3, _⟩,
+  rw ← lit.holds_iff_holds_of_equiv h4,
+  exact h2
+end
+
+lemma holds_vsubs {μs : vmaps} {c : cla} :
+  (c.vsubs μs).holds R F V ↔
+  c.holds R F (V.vsubs F μs) :=
+by { apply @list.exists_mem_map_iff,
+     apply lit.holds_vsubs }
 
 end cla
 
@@ -123,6 +163,7 @@ meta def to_expr : mat → expr
 
 def holds (R : rls α) (F : fns α) (V : vas α) (m : mat) : Prop :=
 ∀ c ∈ m, cla.holds R F V c
+
 
 end mat
 
@@ -198,7 +239,7 @@ lemma not_holds_empty_cla :
   ¬ (cla.holds R F V []) :=
 by rintro ⟨_, ⟨_⟩, _⟩
 
-lemma holds_tautology : cla.tautology.holds R F V := 
-⟨_, or.inl rfl, rfl⟩ 
+lemma holds_tautology : cla.tautology.holds R F V :=
+⟨_, or.inl rfl, rfl⟩
 
 end vampire

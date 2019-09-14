@@ -79,12 +79,12 @@ union_list([Lst | Lsts], Un) :-
   union_list(Lsts, Tmp),
   union(Lst, Tmp, Un).
 
-vars_trm(var(Num), [Num]).
+vars_trm(vr(Num), [Num]).
 
 vars_trm(fn(_, Trms), Nums) :-
   maplist(vars_trm, Trms, Numss),
   union_list(Numss, Nums).
-  
+
 vars_atm(rl(_, Trms), Nums) :-
   maplist(vars_trm, Trms, Numss),
   union_list(Numss, Nums).
@@ -104,10 +104,10 @@ vars_cla(Cla, Nums) :-
 subst_trms(Inst, Trms, NewTrms) :-
   maplist(subst_trm(Inst), Trms, NewTrms).
 
-subst_trm(Inst, var(Num), var(Num)) :-
+subst_trm(Inst, vr(Num), vr(Num)) :-
   not(member(map(Num, _), Inst)).
 
-subst_trm(Inst, var(Num), Trm) :-
+subst_trm(Inst, vr(Num), Trm) :-
   member(map(Num, Trm), Inst), !.
 
 subst_trm(Inst, fn(Num, Trms), fn(Num, NewTrms)) :-
@@ -136,11 +136,11 @@ compose_inst(FstInst, SndInst, Inst) :-
   update_inst(FstInst, SndInst, NewFstInst),
   append(NewFstInst, SndInst, Inst).
 
-compose_insts([Inst], Inst). 
+compose_insts([Inst], Inst).
 
 compose_insts([Inst | Insts], NewInst) :-
   compose_insts(Insts, TmpInst),
-  compose_inst(Inst, TmpInst, NewInst). 
+  compose_inst(Inst, TmpInst, NewInst).
 
 relevant(Vars, map(Num, _)) :-
   member(Num, Vars).
@@ -149,11 +149,11 @@ src(Num, map(Num, _)).
 
 rm_red_inst([], []).
 
-rm_red_inst([map(Num, Trm) | Inst], [(Num, Trm) | NewInst]) :- 
+rm_red_inst([map(Num, Trm) | Inst], [map(Num, Trm) | NewInst]) :-
   exclude(src(Num), Inst, TmpInst),
   rm_red_inst(TmpInst, NewInst).
 
-is_id(map(Num, var(Num))).
+is_id(map(Num, vr(Num))).
 
 compress_inst(Cla, Inst, NewInst) :-
   rm_red_inst(Inst, Inst1),

@@ -5,7 +5,7 @@
 :- [basic, write, read].
 
 parse_inp([Num | Stk], ['v' | Chs], Mat) :-
-  parse_inp([var(Num) | Stk], Chs, Mat).
+  parse_inp([vr(Num) | Stk], Chs, Mat).
 
 parse_inp([Num, Trms | Stk], ['f' | Chs], Mat) :-
   parse_inp([fn(Num, Trms) | Stk], Chs, Mat).
@@ -41,7 +41,7 @@ parse_inp([Num | Stk], ['1' | Chs], Mat) :-
 
 parse_inp([Mat], [], Mat).
 
-vnew_trm(var(NumA), NumB) :-
+vnew_trm(vr(NumA), NumB) :-
   NumB is NumA + 1.
 
 vnew_trm(fn(_, Trms), Num) :-
@@ -64,7 +64,7 @@ vnew_cla(Cla, Num) :-
   maplist(vnew_lit, Cla, Nums),
   max_list([0 | Nums], Num).
 
-offset(Ofs, Src, map(Src, var(Tgt))) :-
+offset(Ofs, Src, map(Src, vr(Tgt))) :-
   Tgt is Src + Ofs.
 
 disjoiner(Cla1, Cla2, Dsj) :-
@@ -81,14 +81,14 @@ unif_trms([TrmA | TrmsA], [TrmB | TrmsB], Maps) :-
   unif_trms(TrmsA1, TrmsB1, SndMaps),
   compose_inst(FstMaps, SndMaps, Maps).
 
-unif_trm(var(Num), Trm, [map(Num, Trm)]).
+unif_trm(vr(Num), Trm, [map(Num, Trm)]).
 
-unif_trm(Trm, var(Num), [map(Num, Trm)]).
+unif_trm(Trm, vr(Num), [map(Num, Trm)]).
 
-unif_trm(fn(Num, TrmsA), fn(Num, TrmsB), Maps) :- 
+unif_trm(fn(Num, TrmsA), fn(Num, TrmsB), Maps) :-
   unif_trms(TrmsA, TrmsB, Maps).
 
-unif_atm(rl(Num, TrmsA), rl(Num, TrmsB), Maps) :- 
+unif_atm(rl(Num, TrmsA), rl(Num, TrmsB), Maps) :-
   unif_trms(TrmsA, TrmsB, Maps).
 
 unif_atm(eq(TrmAL, TrmAR), eq(TrmBL, TrmBR), Maps) :-
@@ -127,7 +127,7 @@ inst_trms([SrcTrm | SrcTrms], [TgtTrm | TgtTrms], Maps) :-
   inst_trms(SrcTrms, TgtTrms, Maps2),
   merge_instantiators(Maps1, Maps2, Maps).
 
-inst_trm(var(Num), Trm, [map(Num, Trm)]).
+inst_trm(vr(Num), Trm, [map(Num, Trm)]).
 
 inst_trm(fn(Num, SrcTrms), fn(Num, TgtTrms), Maps) :-
   inst_trms(SrcTrms, TgtTrms, Maps).
@@ -140,10 +140,10 @@ inst_atm(eq(SrcTrmA, SrcTrmB), eq(TgtTrmA, TgtTrmB), Maps) :-
   inst_trm(SrcTrmB, TgtTrmB, Maps2),
   merge_instantiators(Maps1, Maps2, Maps).
 
-calc_inst_atm(SrcAtm, TgtAtm, Maps) :- 
+calc_inst_atm(SrcAtm, TgtAtm, Maps) :-
   inst_atm(SrcAtm, TgtAtm, Maps).
 
-calc_inst_atm(eq(TrmA, TrmB), TgtAtm, Maps) :- 
+calc_inst_atm(eq(TrmA, TrmB), TgtAtm, Maps) :-
   inst_atm(eq(TrmB, TrmA), TgtAtm, Maps).
 
 calc_inst_lit(lit(Pol, SrcAtm), lit(Pol, TgtAtm), Maps) :-
@@ -159,7 +159,7 @@ calc_inst_perm_cla([Lit | Cla], Tgt, Inst, [LitNum | ClaNums]) :-
 
 calc_inst_cla([], _, []).
 
-calc_inst_cla([Lit | Cla], TgtCla, Inst) :- 
+calc_inst_cla([Lit | Cla], TgtCla, Inst) :-
   member(TgtLit, TgtCla),
   calc_inst_lit(Lit, TgtLit, LitInst),
   calc_inst_cla(Cla, TgtCla, ClaInst),
@@ -228,43 +228,43 @@ rep_map_trm(SrcTrm, TrmA, TrmB, TgtTrm, Rpl) :-
   inst_trm(TrmB1, TgtTrm, RplB),
   compose_inst(RplA, RplB, Rpl).
 
-rep_map_trm(var(Num), _, _, TgtTrm, [map(Num, TgtTrm)]).
+rep_map_trm(vr(Num), _, _, TgtTrm, [map(Num, TgtTrm)]).
 
-rep_map_trm(fn(Num, SrcTrms), TrmA, TrmB, fn(Num, TgtTrms), Rpl) :- 
+rep_map_trm(fn(Num, SrcTrms), TrmA, TrmB, fn(Num, TgtTrms), Rpl) :-
   rep_map_trms(SrcTrms, TrmA, TrmB, TgtTrms, Rpl).
 
 rep_map_trms([], _, _, [], []).
 
-rep_map_trms([SrcTrm | SrcTrms], TrmA, TrmB, [TgtTrm | TgtTrms], Rpl) :- 
-  rep_map_trm(SrcTrm, TrmA, TrmB, TgtTrm, Rpl1), 
+rep_map_trms([SrcTrm | SrcTrms], TrmA, TrmB, [TgtTrm | TgtTrms], Rpl) :-
+  rep_map_trm(SrcTrm, TrmA, TrmB, TgtTrm, Rpl1),
   maplist(subst_trm(Rpl1), SrcTrms, SrcTrms1),
   subst_trm(Rpl1, TrmA, TrmA1),
   subst_trm(Rpl1, TrmB, TrmB1),
-  rep_map_trms(SrcTrms1, TrmA1, TrmB1, TgtTrms, Rpl2), 
+  rep_map_trms(SrcTrms1, TrmA1, TrmB1, TgtTrms, Rpl2),
   compose_inst(Rpl1, Rpl2, Rpl).
 
-rep_map_atm(eq(SrcTrmA, SrcTrmB), TrmA, TrmB, eq(TgtTrmA, TgtTrmB), Rpl) :- 
-  rep_map_trm(SrcTrmA, TrmA, TrmB, TgtTrmA, RplA), 
+rep_map_atm(eq(SrcTrmA, SrcTrmB), TrmA, TrmB, eq(TgtTrmA, TgtTrmB), Rpl) :-
+  rep_map_trm(SrcTrmA, TrmA, TrmB, TgtTrmA, RplA),
   subst_trm(RplA, SrcTrmB, SrcTrmB1),
   subst_trm(RplA, TrmA, TrmA1),
   subst_trm(RplA, TrmB, TrmB1),
-  rep_map_trm(SrcTrmB1, TrmA1, TrmB1, TgtTrmB, RplB), 
+  rep_map_trm(SrcTrmB1, TrmA1, TrmB1, TgtTrmB, RplB),
   compose_inst(RplA, RplB, Rpl).
 
-rep_map_atm(rl(Num, SrcTrms), TrmA, TrmB, rl(Num, TgtTrms), Rpl) :- 
+rep_map_atm(rl(Num, SrcTrms), TrmA, TrmB, rl(Num, TgtTrms), Rpl) :-
   rep_map_trms(SrcTrms, TrmA, TrmB, TgtTrms, Rpl).
 
 rep_map_lit(lit(Pol, SrcAtm), TrmA, TrmB, lit(Pol, TgtAtm), Rpl) :-
   rep_map_atm(SrcAtm, TrmA, TrmB, TgtAtm, Rpl),
-  subst_atm(Rpl, SrcAtm, SrcAtm1), 
+  subst_atm(Rpl, SrcAtm, SrcAtm1),
   subst_trm(Rpl, TrmA, TrmA1),
   subst_trm(Rpl, TrmB, TrmB1),
   rep_atm(TrmA1, TrmB1, SrcAtm1, TgtAtm).
 
 rep_trm(TrmL, TrmR, TrmL, TrmR).
 
-rep_trm(TrmL, _, var(Num), var(Num)) :-
-  not(TrmL = var(Num)).
+rep_trm(TrmL, _, vr(Num), vr(Num)) :-
+  not(TrmL = vr(Num)).
 
 rep_trm(TrmL, TrmR, fn(Num, SrcTrms), fn(Num, TgtTrms)) :-
   maplist(rep_trm(TrmL, TrmR), SrcTrms, TgtTrms).
@@ -282,7 +282,7 @@ select_dir(Prf, Prf).
 select_dir(Prf, sym(Prf, [lit(Pol, eq(TrmB, TrmA)) | Cnc])) :-
   conc(Prf, [lit(Pol, eq(TrmA, TrmB)) | Cnc]).
 
-select_rot(Prf, rot(Num, Prf, NewCnc)) :- 
+select_rot(Prf, rot(Num, Prf, NewCnc)) :-
   conc(Prf, Cnc),
   tor(Cnc, Num, NewCnc).
 
@@ -320,30 +320,30 @@ pluck(Fst, [Elm | Snd], Elm, Rem) :-
   append(Fst, Snd, Rem).
 
 pluck(Fst, [Hd | Snd], Elm, Rem) :-
-  pluck([Hd | Fst], Snd, Elm, Rem). 
+  pluck([Hd | Fst], Snd, Elm, Rem).
 
 pluck(Lst, Elm, Rem) :-
-  pluck([], Lst, Elm, Rem). 
+  pluck([], Lst, Elm, Rem).
 
 expl_ln(_, _, ln(LnNum, trv(PremNum), Cla),
   [ ln(LnNum, trv(abs(PremNum)), Cla) ]).
 
-expl_ln(_, Lns, 
-  ln(LnNum, map(PremNum), Cla), 
-  [ ln(LnNum, sub(rel(0)), Cla),
-    ln(none, inst(Inst, abs(PremNum)), ClaA) ]) :- 
+expl_ln(_, Lns,
+  ln(LnNum, map(PremNum), Cla),
+  [ ln(LnNum, wkn(rel(0)), Cla),
+    ln(none, inst(Inst, abs(PremNum)), ClaA) ]) :-
   member(ln(PremNum, _, ClaA0), Lns),
   calc_inst_cla(ClaA0, Cla, Inst),
   subst_cla(Inst, ClaA0, ClaA).
 
-expl_ln(_, Lns, 
-  ln(LnNum, rep(PremNumA, PremNumB), Cla), 
-  [ ln(LnNum, sub(rel(0)), Cla),
+expl_ln(_, Lns,
+  ln(LnNum, rep(PremNumA, PremNumB), Cla),
+  [ ln(LnNum, wkn(rel(0)), Cla),
     ln(none, rep(rel(2), rel(0)), [Lit | TlCla]),
-    ln(none, sub(rel(0)), [lit(pos, eq(TrmA, TrmB)) | TlCla]),
-    ln(none, inst(PremNumB, InstB), ClaB),  
-    ln(none, sub(rel(0)), [LitA | TlCla]),
-    ln(none, inst(PremNumA, InstA), ClaA) ]) :- 
+    ln(none, wkn(rel(0)), [lit(pos, eq(TrmA, TrmB)) | TlCla]),
+    ln(none, inst(PremNumB, InstB), ClaB),
+    ln(none, wkn(rel(0)), [LitA | TlCla]),
+    ln(none, inst(PremNumA, InstA), ClaA) ]) :-
   member(ln(PremNumA, _, ClaA0), Lns),
   member(ln(PremNumB, _, ClaB0), Lns),
   disjoiner(ClaB0, Cla, DsjB),
@@ -351,13 +351,13 @@ expl_ln(_, Lns,
   disjoiner(ClaA0, ClaB1, DsjA),
   subst_cla(DsjA, ClaA0, ClaA1),
 
-  pluck(ClaA1, LitA0, TlClaA), 
-  pluck(ClaB1, LitB0, TlClaB), 
-  ( LitB0 = lit(pos, eq(TrmA0, TrmB0)) ; 
+  pluck(ClaA1, LitA0, TlClaA),
+  pluck(ClaB1, LitB0, TlClaB),
+  ( LitB0 = lit(pos, eq(TrmA0, TrmB0)) ;
     LitB0 = lit(pos, eq(TrmB0, TrmA0)) ),
-  pluck(Cla, Lit, TlCla), 
+  pluck(Cla, Lit, TlCla),
 
-  rep_map_lit(LitA0, TrmA0, TrmB0, Lit, Inst0), 
+  rep_map_lit(LitA0, TrmA0, TrmB0, Lit, Inst0),
   calc_inst_cla(TlClaA, TlCla, Inst1),
   merge_instantiators(Inst0, Inst1, Inst2),
   calc_inst_cla(TlClaB, TlCla, Inst3),
@@ -372,9 +372,9 @@ expl_ln(_, Lns,
   subst_trm(InstB, TrmA0, TrmA),
   subst_trm(InstB, TrmB0, TrmB).
 
-expl_ln(_, Lns, ln(LnNum, eqres(PremNum), Cla), 
+expl_ln(_, Lns, ln(LnNum, eqres(PremNum), Cla),
   [ ln(LnNum, trv(rel(0)), Cla),
-    ln(none, sub(rel(0)), [lit(neg, eq(Trm, Trm)) | Cla]),
+    ln(none, wkn(rel(0)), [lit(neg, eq(Trm, Trm)) | Cla]),
     ln(none, inst(Inst, abs(PremNum)), ClaA) ]) :-
   member(ln(PremNum, _, ClaA0), Lns),
   pluck(ClaA0, lit(neg, eq(TrmA, TrmB)), ClaA1),
@@ -385,13 +385,13 @@ expl_ln(_, Lns, ln(LnNum, eqres(PremNum), Cla),
   subst_trm(Inst, TrmA, Trm),
   subst_cla(Inst, ClaA0, ClaA).
 
-expl_ln(_, Lns, ln(LnNum, res(NumA, NumB), Cla), 
+expl_ln(_, Lns, ln(LnNum, res(NumA, NumB), Cla),
   [ ln(LnNum, res(rel(2), rel(0)), Cla),
-    ln(none, sub(rel(0)), [lit(pos, Atm) | Cla]),
+    ln(none, wkn(rel(0)), [lit(pos, Atm) | Cla]),
     ln(none, inst(InstB, abs(PremNumB)), ClaB),
-    ln(none, sub(rel(0)), [lit(neg, Atm) | Cla]),
+    ln(none, wkn(rel(0)), [lit(neg, Atm) | Cla]),
     ln(none, inst(InstA, abs(PremNumA)), ClaA) ]) :-
-  ( (PremNumA = NumA, PremNumB = NumB) ; 
+  ( (PremNumA = NumA, PremNumB = NumB) ;
     (PremNumA = NumB, PremNumB = NumA) ),
   % Get premise lns
   member(ln(PremNumA, _, ClaA0), Lns),
@@ -415,8 +415,8 @@ expl_ln(_, Lns, ln(LnNum, res(NumA, NumB), Cla),
   subst_cla(InstA, ClaA0, ClaA),
   subst_cla(InstB, ClaB1, ClaB).
 
-expl_ln(Mat, _, ln(LnNum, hyp, Cla), 
-  [ ln(LnNum, sub(rel(0)), Cla), 
+expl_ln(Mat, _, ln(LnNum, hyp, Cla),
+  [ ln(LnNum, wkn(rel(0)), Cla),
     ln(none, inst(Inst, rel(0)), ClaA1),
     ln(none, hyp(ClaNum), ClaA0) ]) :-
   nth0(ClaNum, Mat, ClaA0),
@@ -427,7 +427,150 @@ expl_lns(Mat, Lns, Prf) :-
   maplist(expl_ln(Mat, Lns), Lns, Prfs),
   append(Prfs, Prf).
 
-expl_lns(Mat, Lns, expl_lns_error(Mat, Lns)). 
+expl_lns(Mat, Lns, expl_lns_error(Mat, Lns)).
+
+find_rel_pos(Dst, Num, [ln(LnNum, _, _) | _], NewNum) :-
+  Num = LnNum, Dst = NewNum.
+
+find_rel_pos(Dst, Num, [ln(LnNum, _, _) | Prf], NewNum) :-
+  not(Num = LnNum),
+  NewDst is Dst + 1,
+  find_rel_pos(NewDst, Num, Prf, NewNum).
+
+relativize_num(rel(Num), _, Num).
+
+relativize_num(abs(Num), Prf, NewNum) :-
+  find_rel_pos(0, Num, Prf, NewNum).
+
+relativize_rul(hyp(Num), _, hyp(Num)).
+
+relativize_rul(rep(NumA, NumB), Prf, rep(NewNumA, NewNumB)) :-
+  relativize_num(NumA, Prf, NewNumA),
+  relativize_num(NumB, Prf, NewNumB).
+
+relativize_rul(res(NumA, NumB), Prf, res(NewNumA, NewNumB)) :-
+  relativize_num(NumA, Prf, NewNumA),
+  relativize_num(NumB, Prf, NewNumB).
+
+relativize_rul(wkn(Num), Prf, wkn(NewNum)) :-
+  relativize_num(Num, Prf, NewNum).
+
+relativize_rul(trv(Num), Prf, wkn(NewNum)) :-
+  relativize_num(Num, Prf, NewNum).
+
+relativize_rul(inst(Inst, Num), Prf, inst(Inst, NewNum)) :-
+  relativize_num(Num, Prf, NewNum).
+
+relativize_ln(ln(_, Rul, Cla), Prf, ln(NewRul, Cla)) :-
+  relativize_rul(Rul, Prf, NewRul).
+
+relativize([], []).
+
+relativize([Ln | Prf], [NewLn | NewPrf]) :-
+  relativize_ln(Ln, Prf, NewLn),
+  relativize(Prf, NewPrf).
+
+encode_lst(_, [], "n").
+
+encode_lst(Enc, [Elm | Lst], Str) :-
+  call(Enc, Elm, ElmStr),
+  encode_lst(Enc, Lst, LstStr),
+  join_string([LstStr, ElmStr, "c"], Str).
+
+% encode_trms([], "n").
+%
+% encode_trms([Trm | Trms], Str) :-
+%   encode_trms(Trms, TrmsStr),
+%   encode_trm(Trm, TrmStr),
+%   join_string([TrmsStr, TrmStr, "c"], Str).
+
+encode_trm(vr(Num), Str) :-
+  encode_num(Num, NumStr),
+  join_string([NumStr, "v"], Str).
+
+encode_trm(fn(Num, Trms), Str) :-
+  encode_num(Num, NumStr),
+  encode_lst(encode_trm, Trms, TrmsStr),
+  join_string([TrmsStr, NumStr, "f"], Str).
+
+encode_atm(rl(Num, Trms), Str) :-
+  encode_num(Num, NumStr),
+  encode_lst(encode_trm, Trms, TrmsStr),
+  join_string([TrmsStr, NumStr, "r"], Str).
+
+encode_atm(eq(TrmA, TrmB), Str) :-
+  encode_trm(TrmA, TrmStrA),
+  encode_trm(TrmB, TrmStrB),
+  join_string([TrmStrA, TrmStrB, "e"], Str).
+
+encode_pol(pos, "+").
+encode_pol(neg, "-").
+
+encode_lit(lit(Pol, Atm), Str) :-
+  encode_pol(Pol, PolStr),
+  encode_atm(Atm, AtmStr),
+  join_string([AtmStr, PolStr], Str).
+
+encode_map(map(Num, Trm), Str) :-
+  encode_num(Num, NumStr),
+  encode_trm(Trm, TrmStr),
+  join_string([TrmStr, NumStr, "m"], Str).
+
+encode_maps(Maps, Str) :-
+  encode_lst(encode_map, Maps, Str).
+%
+% encode_maps([map(Num, Trm) | Maps], Str) :-
+%   encode_maps(Maps, SubStr),
+%   join_string([SubStr, TrmStr, NumStr, "mc"], Str).
+
+encode_num(Num, Str) :-
+  number_binstr(Num, NumStr),
+  string_concat("b", NumStr, Str).
+
+encode_rul(hyp(Num), Str) :-
+  encode_num(Num, NumStr),
+  join_string([NumStr, "H"], Str).
+
+encode_rul(res(NumA, NumB), Str) :-
+  encode_num(NumA, NumStrA),
+  encode_num(NumB, NumStrB),
+  join_string([NumStrA, NumStrB, "R"], Str).
+
+encode_rul(rep(NumA, NumB), Str) :-
+  encode_num(NumA, NumStrA),
+  encode_num(NumB, NumStrB),
+  join_string([NumStrA, NumStrB, "R"], Str).
+
+encode_rul(inst(Inst, Num), Str) :-
+  encode_maps(Inst, InstStr),
+  encode_num(Num, NumStr),
+  join_string([InstStr, NumStr, "I"], Str).
+
+encode_rul(trv(Num), Str) :-
+  encode_num(Num, NumStr),
+  join_string([NumStr, "V"], Str).
+
+encode_rul(wkn(Num), Str) :-
+  encode_num(Num, NumStr),
+  join_string([NumStr, "W"], Str).
+
+encode_cla(Cla, Str) :-
+  encode_lst(encode_lit, Cla, Str).
+
+encode_ln(ln(Rul, Cla), Str) :-
+  encode_rul(Rul, RulStr),
+  encode_cla(Cla, ClaStr),
+  join_string([ClaStr, RulStr, "l"], Str).
+
+encode_prf(Prf, Str) :-
+  encode_lst(encode_ln, Prf, Str).
+
+encode_prf(Prf, encode_prf_error(Prf)).
+
+string_block(Str, Blk) :-
+  break_string(60, Str, Strs),
+  string_codes(Nl, [10]),
+  join_string(Strs, Nl, Blk).
 
 main([Argv]) :-
   string_chars(Argv, Chs),
@@ -435,12 +578,14 @@ main([Argv]) :-
   temp_loc(Loc),
   write_goal(Loc, Mat),
   read_proof(Loc, Lns),
-  expl_lns(Mat, Lns, RawPrf),
+  expl_lns(Mat, Lns, Prf0),
+  relativize(Prf0, Prf1),
+  encode_prf(Prf1, RawStr),
 
   % compress(RawPrf, Prf),
-  % lnarize_prf(Prf, RawStr),
-  % string_block(RawStr, Str),
-  write(RawPrf).
+  % encode_prf(Prf, RawStr),
+  string_block(RawStr, Str),
+  write(Str).
 
 /*
 cmpl(Mat, _, Tgt, hyp, Prf) :-
@@ -468,7 +613,7 @@ cmpl(Mat, Lns, Tgt, rep(NumA, NumB), Prf) :-
 cmpl(Mat, Lns, Tgt, eqres(Num), Prf) :-
   cmpl(Mat, Lns, Num, Prf1),
   conc(Prf1, Cnc1),
-  tor(Cnc1, Idx, Cnc2), 
+  tor(Cnc1, Idx, Cnc2),
   Cnc2 = [lit(neg, eq(TrmA, TrmB)) | _],
   Prf2 = rot(Idx, Prf1, Cnc2),
   unif_trm(TrmA, TrmB, Unf),
@@ -498,10 +643,6 @@ cmpl(Mat, Lns, Prf) :-
 
 cmpl(Mat, Lns, cmpl_error(Mat, Lns)).
 
-string_block(Str, Blk) :-
-  break_string(60, Str, Strs),
-  string_codes(Nl, [10]),
-  join_string(Strs, Nl, Blk).
 
 trms_string(Trms, Str) :-
   maplist(trm_string, Trms, TrmStrs),
@@ -600,68 +741,4 @@ lns_string(Lns, Str) :-
   maplist(ln_string, Lns, Strs),
   string_codes(Nl, [10]),
   join_string(Strs, Nl, Str).
-
-lnarize_trms([], "n").
-
-lnarize_trms([Trm | Trms], Str) :-
-  lnarize_trms(Trms, TrmsStr),
-  lnarize_trm(Trm, TrmStr),
-  join_string([TrmsStr, TrmStr, "c"], Str).
-
-lnarize_trm(var(Num), Str) :-
-  number_binstr(Num, NumStr),
-  join_string(["b", NumStr, "v"], Str).
-
-lnarize_trm(fn(Num, Trms), Str) :-
-  number_binstr(Num, NumStr),
-  lnarize_trms(Trms, TrmsStr), 
-  join_string([TrmsStr, "b", NumStr, "f"], Str).
-
-lnarize_maps([], "n").
-
-lnarize_maps([map(Num, Trm) | Maps], Str) :-
-  number_binstr(Num, NumStr),
-  lnarize_trm(Trm, TrmStr),
-  lnarize_maps(Maps, SubStr),
-  join_string([SubStr, TrmStr, "b", NumStr, "mc"], Str).
-
-lnarize_prf(hyp(Num, _), Str) :-
-  number_binstr(Num, NumStr),
-  join_string(["b", NumStr, "H"], Str).
-
-lnarize_prf(res(PrfA, PrfB, _), Str) :-
-  lnarize_prf(PrfA, StrA),
-  lnarize_prf(PrfB, StrB),
-  join_string([StrA, StrB, "R"], Str).
-
-lnarize_prf(rep(PrfA, PrfB, _), Str) :-
-  lnarize_prf(PrfA, StrA),
-  lnarize_prf(PrfB, StrB),
-  join_string([StrA, StrB, "P"], Str).
-
-lnarize_prf(rot(Num, Prf, _), Str) :-
-  number_binstr(Num, NumStr),
-  lnarize_prf(Prf, PrfStr),
-  join_string([PrfStr, "b", NumStr, "T"], Str).
-
-lnarize_prf(sub(Maps, Prf, _), Str) :-
-  lnarize_maps(Maps, MapsStr),
-  lnarize_prf(Prf, PrfStr),
-  join_string([PrfStr, MapsStr, "S"], Str).
-
-lnarize_prf(sym(Prf, _), Str) :-
-  lnarize_prf(Prf, PrfStr),
-  join_string([PrfStr, "Y"], Str).
-
-lnarize_prf(trv(Prf, _), Str) :-
-  lnarize_prf(Prf, PrfStr),
-  join_string([PrfStr, "V"], Str).
-
-lnarize_prf(cnt(Prf, _), Str) :-
-  lnarize_prf(Prf, PrfStr),
-  join_string([PrfStr, "C"], Str).
-
-lnarize_prf(_, "lnarize_error").
-
 */
-

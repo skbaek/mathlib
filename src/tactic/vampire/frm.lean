@@ -52,11 +52,11 @@ def Vdf (α : Type) [inhabited α] : vas α := λ _, default α
 local notation f `₀↦` a := assign a f
 
 @[derive decidable_eq]
-inductive xtrm : bool → Type 
+inductive xtrm : bool → Type
 | vr   : nat → xtrm ff
 | fn   : nat → xtrm tt → xtrm ff
-| nil  : xtrm tt 
-| cons : xtrm ff → xtrm tt → xtrm tt 
+| nil  : xtrm tt
+| cons : xtrm ff → xtrm tt → xtrm tt
 
 @[reducible] def trm  := xtrm ff
 @[reducible] def trms := xtrm tt
@@ -66,7 +66,7 @@ local notation `f*` := xtrm.fn
 local notation `[]*` := xtrm.nil
 local notation h `::*` ts  := xtrm.cons h ts
 
-namespace xtrm 
+namespace xtrm
 
 def size : ∀ {b : bool}, xtrm b → nat
 | ff (v* k)      := 0
@@ -74,20 +74,20 @@ def size : ∀ {b : bool}, xtrm b → nat
 | tt []*        := 0
 | tt (t ::* ts) := t.size + ts.size + 1
 
-lemma succ_size_tail_le_size_cons {t : trm} {ts : trms} : 
-  succ (size ts) ≤ size (t::*ts) := 
-@eq.rec nat (size t + (size ts + 1)) (λ x, (size ts).succ ≤ x) 
+lemma succ_size_tail_le_size_cons {t : trm} {ts : trms} :
+  succ (size ts) ≤ size (t::*ts) :=
+@eq.rec nat (size t + (size ts + 1)) (λ x, (size ts).succ ≤ x)
   (nat.le_add_left _ _) _ rfl
 
-lemma size_tail_lt_size_cons {t : trm} {ts : trms} : 
-  (size ts) < size (cons t ts) :=  
-@nat.lt_of_lt_of_le _ (size ts).succ _ (lt_succ_self _) 
+lemma size_tail_lt_size_cons {t : trm} {ts : trms} :
+  (size ts) < size (cons t ts) :=
+@nat.lt_of_lt_of_le _ (size ts).succ _ (lt_succ_self _)
   succ_size_tail_le_size_cons
 
 lemma size_head_lt_size_cons {t : trm} {ts : trms} :
-  xtrm.size t < xtrm.size (t ::* ts) := 
-nat.lt_of_le_of_lt 
-  (nat.le_add_right _ (xtrm.size ts)) 
+  xtrm.size t < xtrm.size (t ::* ts) :=
+nat.lt_of_le_of_lt
+  (nat.le_add_right _ (xtrm.size ts))
   (nat.lt_succ_self _)
 
 end xtrm
@@ -102,16 +102,16 @@ using_well_founded {
   rel_tac := λ _ _, `[exact ⟨_, measure_wf xtrm.size⟩]
 }
 
-instance has_mem : has_mem trm trms := ⟨mem⟩ 
+instance has_mem : has_mem trm trms := ⟨mem⟩
 
-lemma mem_cons_iff (t s : trm) (ts : trms) : 
+lemma mem_cons_iff (t s : trm) (ts : trms) :
   t ∈ (s ::* ts) ↔ t = s ∨ t ∈ ts := iff.refl _
 
-def length : trms → nat 
+def length : trms → nat
 | []*        := 0
 | (_ ::* ts) := length ts + 1
 
-def lmap (f : trm → A) : trms → list A 
+def lmap (f : trm → A) : trms → list A
 | []*        := []
 | (t ::* ts) := f t :: lmap ts
 using_well_founded {
@@ -119,7 +119,7 @@ using_well_founded {
   rel_tac := λ _ _, `[exact ⟨_, measure_wf xtrm.size⟩]
 }
 
-def dlmap : ∀ {ts : trms}, (∀ t : trm, t ∈ ts → A) → list A 
+def dlmap : ∀ {ts : trms}, (∀ t : trm, t ∈ ts → A) → list A
 | []*        := λ _, []
 | (t ::* ts) := λ f, (f t (or.inl rfl) :: @dlmap ts (λ x h, f x $ or.inr h))
 using_well_founded {
@@ -127,7 +127,7 @@ using_well_founded {
   rel_tac := λ _ _, `[exact ⟨_, measure_wf xtrm.size⟩]
 }
 
-def tmap (f : trm → trm) : trms → trms 
+def tmap (f : trm → trm) : trms → trms
 | []*        := []*
 | (t ::* ts) := f t ::* tmap ts
 using_well_founded {
@@ -135,7 +135,7 @@ using_well_founded {
   rel_tac := λ _ _, `[exact ⟨_, measure_wf xtrm.size⟩]
 }
 
-def dtmap : ∀ {ts : trms}, (∀ t : trm, t ∈ ts → trm) → trms  
+def dtmap : ∀ {ts : trms}, (∀ t : trm, t ∈ ts → trm) → trms
 | []*        := λ _, []*
 | (t ::* ts) := λ f, (f t (or.inl rfl) ::* @dtmap ts (λ x h, f x $ or.inr h))
 using_well_founded {
@@ -143,74 +143,78 @@ using_well_founded {
   rel_tac := λ _ _, `[exact ⟨_, measure_wf xtrm.size⟩]
 }
 
+def of_list : list trm → trms
+| [] := []*
+| (t :: ts) := (t ::* of_list ts)
+
 /- Lemmas -/
 
 lemma dlmap_eq_lmap (f : trm → A) :
-  ∀ ts : trms, dlmap (λ x, λ _ : x ∈ ts, f x) = lmap f ts 
+  ∀ ts : trms, dlmap (λ x, λ _ : x ∈ ts, f x) = lmap f ts
 | []*        := rfl
-| (t ::* ts) := 
+| (t ::* ts) :=
   by { unfold dlmap, unfold lmap,
        apply congr_arg,
        apply dlmap_eq_lmap }
 
 lemma dtmap_eq_tmap (f : trm → trm) :
-  ∀ ts : trms, dtmap (λ x, λ _ : x ∈ ts, f x) = tmap f ts 
+  ∀ ts : trms, dtmap (λ x, λ _ : x ∈ ts, f x) = tmap f ts
 | []*        := rfl
-| (t ::* ts) := 
+| (t ::* ts) :=
   by { unfold dtmap, unfold tmap,
        apply congr_arg,
        apply dtmap_eq_tmap }
 
 lemma lmap_tmap (f : trm → A) (g : trm → trm) :
-  ∀ ts : trms, lmap f (tmap g ts) = lmap (f ∘ g) ts 
+  ∀ ts : trms, lmap f (tmap g ts) = lmap (f ∘ g) ts
 | []*        := rfl
-| (t ::* ts) := 
+| (t ::* ts) :=
   by { unfold tmap, unfold lmap,
        apply congr_arg,
        apply lmap_tmap }
 
 lemma tmap_tmap (f : trm → trm) (g : trm → trm) :
-  ∀ ts : trms, tmap f (tmap g ts) = tmap (f ∘ g) ts 
+  ∀ ts : trms, tmap f (tmap g ts) = tmap (f ∘ g) ts
 | []*        := rfl
-| (t ::* ts) := 
+| (t ::* ts) :=
   by { unfold tmap, apply congr_arg, apply tmap_tmap }
 
-lemma forall_mem_of_forall_mem_cons 
+lemma forall_mem_of_forall_mem_cons
   {p : trm → Prop} {t : trm} {ts : trms} :
-  (∀ x : trm, x ∈ (t ::* ts) → p x) → 
-  (∀ x : trm, x ∈ ts → p x) := 
+  (∀ x : trm, x ∈ (t ::* ts) → p x) →
+  (∀ x : trm, x ∈ ts → p x) :=
 λ h0 t h1, h0 _ (or.inr h1)
 
 lemma lmap_eq_lmap {f g : trm → A} :
-  ∀ {ts : trms}, 
-  (∀ t : trm, t ∈ ts → f t = g t) → 
+  ∀ {ts : trms},
+  (∀ t : trm, t ∈ ts → f t = g t) →
   lmap f ts = lmap g ts
 | []* := λ _, rfl
 | (t ::* ts) :=
   by { intro h0, unfold lmap,
        rw [ h0 _ (or.inl rfl), @lmap_eq_lmap ts ],
        apply forall_mem_of_forall_mem_cons h0 }
-  
+
 end trms
 
 lemma xtrm.size_lt_size_of_mem :
-  ∀ {ts : trms} {s : trm}, 
-  s ∈ ts → xtrm.size s < xtrm.size ts   
+  ∀ {ts : trms} {s : trm},
+  s ∈ ts → xtrm.size s < xtrm.size ts
 | []*        := by rintros _ ⟨_⟩
-| (t ::* ts) := 
-  λ s h0, 
-    or.rec_on ((trms.mem_cons_iff _ _ _).elim_left h0) 
-    (λ h1, @eq.rec _ t (λ x, xtrm.size x < xtrm.size (t ::* ts)) 
+| (t ::* ts) :=
+  λ s h0,
+    or.rec_on ((trms.mem_cons_iff _ _ _).elim_left h0)
+    (λ h1, @eq.rec _ t (λ x, xtrm.size x < xtrm.size (t ::* ts))
       xtrm.size_head_lt_size_cons s h1.symm)
-    (λ h1, nat.lt_trans (@xtrm.size_lt_size_of_mem ts s h1) 
-       (@xtrm.size_tail_lt_size_cons t ts)) 
+    (λ h1, nat.lt_trans (@xtrm.size_lt_size_of_mem ts s h1)
+       (@xtrm.size_tail_lt_size_cons t ts))
 using_well_founded {
   dec_tac := `[ apply xtrm.size_tail_lt_size_cons ],
   rel_tac := λ _ _, `[exact ⟨_, measure_wf xtrm.size⟩]
 }
 
 lemma xtrm.lt_size_fn {k : nat} {s : trm} {ts : trms} :
-  s ∈ ts → xtrm.size s < xtrm.size (f* k ts) := 
+  s ∈ ts → xtrm.size s < xtrm.size (f* k ts) :=
 λ h0, nat.lt_trans (xtrm.size_lt_size_of_mem h0) (nat.lt_succ_self _)
 
 def vmap  : Type := nat × trm
@@ -220,11 +224,11 @@ def vmaps.get (k : nat) : vmaps → option trm
 | []             := none
 | ((m, t) :: μs) := if k = m then some t else vmaps.get μs
 
-def trm.rec {C : trm → Sort u} 
-  (f : ∀ k : nat, C ((v* k))) 
-  (g : ∀ k : nat, ∀ ts : trms, 
-    (∀ t ∈ ts, C t) → C (f* k ts)) : 
-  ∀ t : trm, C t 
+def trm.rec {C : trm → Sort u}
+  (f : ∀ k : nat, C ((v* k)))
+  (g : ∀ k : nat, ∀ ts : trms,
+    (∀ t ∈ ts, C t) → C (f* k ts)) :
+  ∀ t : trm, C t
 | (v* k)    := f _
 | (f* k ts) := g _ _ (λ x h, trm.rec _)
 using_well_founded {
@@ -240,64 +244,63 @@ option.rec (V k) (trm.val F V) (μ.get k)
 
 namespace trm
 
-meta def rec_fn_t : tactic unit := 
+meta def rec_fn_t : tactic unit :=
 `[ unfold rec, apply congr_arg, apply trms.dtmap_eq_tmap ]
 
-meta def rec_fn_l : tactic unit := 
+meta def rec_fn_l : tactic unit :=
 `[ unfold rec, apply congr_arg, apply trms.dlmap_eq_lmap ]
 
-def repr : trm → string := 
-rec 
-  (λ k, "X" ++ k.to_subs) 
+def repr : trm → string :=
+rec
+  (λ k, "X" ++ k.to_subs)
   (λ k ts f, "f" ++ k.to_subs ++ string.tuplize (trms.dlmap f))
 
 instance has_repr : has_repr trm := ⟨repr⟩
 
-meta instance has_to_format : has_to_format trm := ⟨λ x, repr x⟩ 
+meta instance has_to_format : has_to_format trm := ⟨λ x, repr x⟩
 
 meta def to_expr : trm → expr :=
-rec 
-  (λ k, expr.app `(xtrm.vr) k.to_expr) 
-  (λ k ts f, expr.mk_app `(xtrm.fn) 
+rec
+  (λ k, expr.app `(xtrm.vr) k.to_expr)
+  (λ k ts f, expr.mk_app `(xtrm.fn)
     [k.to_expr, (foldr (λ x y, expr.mk_app `(xtrm.cons) [x, y]) `(xtrm.nil) (trms.dlmap f))])
 
 def vnew : trm → nat :=
 rec succ (λ _ _ f, nats.max (trms.dlmap f))
 
 lemma vnew_fn (k : nat) (ts : trms) :
-  vnew (f* k ts) = nats.max (trms.lmap vnew ts) := 
-by { unfold vnew, unfold rec, 
+  vnew (f* k ts) = nats.max (trms.lmap vnew ts) :=
+by { unfold vnew, unfold rec,
     apply congr_arg, apply trms.dlmap_eq_lmap }
 
 def fnew : trm → nat :=
 rec (λ _, 0) (λ k _ f, nat.max (k + 1) (nats.max (trms.dlmap f)))
 
 def vinc (m n : nat) : trm → trm :=
-rec 
-  (λ k, v* (if k < m then k else k + n)) 
+rec
+  (λ k, v* (if k < m then k else k + n))
   (λ k ts f, f* k (trms.dtmap f))
 
-lemma vinc_vr (k m n : nat) : 
+lemma vinc_vr (k m n : nat) :
   vinc m n (v* k) = v* (if k < m then k else k + n) := rfl
 
-lemma vinc_fn (k m n : nat) (ts : trms) : 
+lemma vinc_fn (k m n : nat) (ts : trms) :
   vinc m n (f* k ts) = f* k (trms.tmap (vinc m n) ts) :=
 by { unfold vinc, unfold rec,
      apply congr_arg, apply trms.dtmap_eq_tmap }
 
-
-lemma val_vr (F : fns α) (V : vas α) (k : nat) : 
+lemma val_vr (F : fns α) (V : vas α) (k : nat) :
   val F V (v* k) = V k := rfl
 
-lemma val_fn (F : fns α) (V : vas α) (k : nat) (ts : trms) : 
-  val F V (f* k ts) = F k (trms.lmap (val F V) ts) := 
+lemma val_fn (F : fns α) (V : vas α) (k : nat) (ts : trms) :
+  val F V (f* k ts) = F k (trms.lmap (val F V) ts) :=
 by { unfold val, rec_fn_l }
 
 def finc : trm → trm :=
-rec 
+rec
   (λ k, v* k)
   (λ k ts f, f* (k + 1) (trms.dtmap f))
-  
+
 lemma finc_vr (k : nat) :
   finc (v* k) = v* k := rfl
 
@@ -306,58 +309,58 @@ lemma finc_fn (k : nat) (ts : trms) :
 by { unfold finc, rec_fn_t }
 
 def vdec (m : nat) : trm → trm :=
-rec 
+rec
   (λ k, v* (if m < k then k - 1 else k))
   (λ k ts f, f* k (trms.dtmap f))
 
-lemma vdec_vr (k m : nat) : 
+lemma vdec_vr (k m : nat) :
   vdec m (v* k) = v* (if m < k then k - 1 else k) := rfl
 
-lemma vdec_fn (k m : nat) (ts : trms) : 
-  vdec m (f* k ts) = f* k (trms.tmap (vdec m) ts) := 
+lemma vdec_fn (k m : nat) (ts : trms) :
+  vdec m (f* k ts) = f* k (trms.tmap (vdec m) ts) :=
 by { unfold vdec, rec_fn_t }
 
 def vsub (m : nat) (r : trm) : trm → trm :=
-rec 
+rec
   (λ k, if k = m then r else v* k)
   (λ k ts f, f* k (trms.dtmap f))
 
-lemma vsub_vr (k m : nat) (r : trm) : 
-  vsub m r (v* k) = 
+lemma vsub_vr (k m : nat) (r : trm) :
+  vsub m r (v* k) =
   if k = m then r else v* k := rfl
 
-lemma vsub_fn (k m : nat) (r : trm) (ts : trms) : 
-  vsub m r (f* k ts) = f* k (trms.tmap (vsub m r) ts) := 
+lemma vsub_fn (k m : nat) (r : trm) (ts : trms) :
+  vsub m r (f* k ts) = f* k (trms.tmap (vsub m r) ts) :=
 by { unfold vsub, rec_fn_t }
 
 def vsubs (μs : vmaps) : trm → trm :=
 rec
-  (λ k, option.rec (v* k) id (μs.get k)) 
+  (λ k, option.rec (v* k) id (μs.get k))
   (λ k ts f, f* k (trms.dtmap f))
 
-lemma vsubs_vr (μs : vmaps) (k : nat) : 
-  vsubs μs (v* k) = 
+lemma vsubs_vr (μs : vmaps) (k : nat) :
+  vsubs μs (v* k) =
   option.rec (v* k) id (μs.get k) := rfl
 
-lemma vsubs_fn (μs : vmaps) (k : nat) (ts : trms) : 
-  vsubs μs (f* k ts) = f* k (trms.tmap (vsubs μs) ts) := 
+lemma vsubs_fn (μs : vmaps) (k : nat) (ts : trms) :
+  vsubs μs (f* k ts) = f* k (trms.tmap (vsubs μs) ts) :=
 by { unfold vsubs, rec_fn_t }
 
 def farity (m : nat) : trm → option nat :=
-rec 
+rec
   (λ _, none)
-  (λ k ts f, if k = m 
-             then some (trms.length ts) 
+  (λ k ts f, if k = m
+             then some (trms.length ts)
              else (trms.dlmap f).orelse)
 
 def vocc (m : nat) : trm → Prop :=
 rec (λ k, k = m) (λ _ _ f, (trms.dlmap f).disj)
 
-lemma exists_mem_cons_iff 
+lemma exists_mem_cons_iff
   (p : trm → Prop) (t : trm) (ts : trms) :
   (∃ x ∈ (t ::* ts), p x) ↔ p t ∨ ∃ x ∈ ts, p x :=
 by { constructor,
-     { rintro ⟨s, h0, h1⟩, 
+     { rintro ⟨s, h0, h1⟩,
        rw trms.mem_cons_iff at h0,
        cases h0,
        { left, rw ← h0, exact h1 },
@@ -369,61 +372,61 @@ by { constructor,
 lemma disj_iff_exists_mem (p : trm → Prop) :
   ∀ ts : trms, (trms.lmap p ts).disj ↔ ∃ x ∈ ts, p x
 | []*        := by constructor; rintro ⟨_, ⟨_⟩, _⟩
-| (t ::* ts) := 
+| (t ::* ts) :=
   by { unfold trms.lmap,
        rw [disj_cons, exists_mem_cons_iff,
          disj_iff_exists_mem ts] }
 
-lemma vocc_fn (k m : nat) (ts : trms) : 
-  vocc m (f* k ts) ↔ ∃ t ∈ ts, trm.vocc m t := 
+lemma vocc_fn (k m : nat) (ts : trms) :
+  vocc m (f* k ts) ↔ ∃ t ∈ ts, trm.vocc m t :=
 by { have h0 : vocc m (f* k ts) = (trms.lmap (vocc m) ts).disj,
      { unfold vocc, unfold rec,
        apply congr_arg, apply trms.dlmap_eq_lmap },
      rw h0, apply disj_iff_exists_mem }
-  
+
 def replace (t s : trm) : trm → trm :=
 rec
   (λ k, if (v* k) = t then s else (v* k))
-  (λ k ts f, if f* k ts = t 
-             then s 
+  (λ k ts f, if f* k ts = t
+             then s
              else f* k (trms.dtmap f))
-            
+
 lemma replace_vr (k : nat) (t s : trm) :
-  trm.replace t s (v* k) = 
+  trm.replace t s (v* k) =
   if (v* k) = t then s else (v* k) := rfl
 
 lemma replace_fn (k : nat) (t s : trm) (ts : trms) :
-  trm.replace t s (f* k ts) = 
-  if f* k ts = t 
-  then s 
+  trm.replace t s (f* k ts) =
+  if f* k ts = t
+  then s
   else f* k (trms.tmap (trm.replace t s) ts) :=
 by { unfold replace, unfold rec,
-     by_cases h0 : f* k ts = t, 
+     by_cases h0 : f* k ts = t,
      { rw [if_pos h0, if_pos h0] },
      rw [if_neg h0, if_neg h0],
      apply congr_arg,
-     apply trms.dtmap_eq_tmap } 
+     apply trms.dtmap_eq_tmap }
 
 lemma val_vsubs (F : fns α) (V : vas α) (μs : vmaps) :
-  ∀ t : trm, (t.vsubs μs).val F V = t.val F (V.vsubs F μs) :=  
-trm.rec 
+  ∀ t : trm, (t.vsubs μs).val F V = t.val F (V.vsubs F μs) :=
+trm.rec
  (begin
-    intro k, 
+    intro k,
     rw [trm.vsubs_vr, trm.val_vr],
     unfold vas.vsubs,
     cases (μs.get k); refl
   end)
  (begin
     intros k ts ih,
-    rw [trm.vsubs_fn, trm.val_fn, 
+    rw [trm.vsubs_fn, trm.val_fn,
       trm.val_fn, trms.lmap_tmap],
     apply congr_arg,
     apply trms.lmap_eq_lmap ih
   end)
 
-lemma val_replace {t s : trm} (h0 : t.val F V = s.val F V) : 
+lemma val_replace {t s : trm} (h0 : t.val F V = s.val F V) :
   ∀ r : trm, (trm.replace t s r).val F V = r.val F V :=
-trm.rec 
+trm.rec
  (begin
     intro k,
     rw replace_vr,
@@ -432,48 +435,61 @@ trm.rec
     rw if_neg h1
   end)
  (begin
-    intros k ts ih, 
+    intros k ts ih,
     rw replace_fn,
     by_cases h1 : f* k ts = t,
     { rw [if_pos h1, h1, h0] },
-    rw [if_neg h1, trm.val_fn, 
+    rw [if_neg h1, trm.val_fn,
       val_fn, trms.lmap_tmap],
     apply congr_arg,
     apply trms.lmap_eq_lmap ih
   end)
+
 end trm
+
+def vmap.repr : vmap → string
+| (k, t) := k.repr ++ " ↦ " ++ t.repr
+
+instance vmap.has_repr : has_repr vmap := ⟨vmap.repr⟩
 
 def trms.repr (ts : trms) : string :=
 string.tuplize (trms.lmap trm.repr ts)
 
-meta def trmlst.to_expr : list trm → expr 
+meta def trmlst.to_expr : list trm → expr
 | []        := `(@list.nil trm)
-| (t :: ts) := 
+| (t :: ts) :=
   expr.mk_app `(@list.cons trm) [t.to_expr, trmlst.to_expr ts]
 
-inductive atm : Type 
+@[derive decidable_eq]
+inductive atm : Type
 | rl : nat → list trm → atm
 | eq : trm → trm →  atm
 
-local notation `r*`     := atm.rl 
-local notation t `=*` s := atm.eq t s 
+local notation `r*`     := atm.rl
+local notation t `=*` s := atm.eq t s
 
 namespace atm
 
-def equiv : atm → atm → Prop 
+def equiv : atm → atm → Prop
 | (r* k ts)  (r* m ss)  := k = m ∧ ts = ss
 | (r* _ _)   (_ =* _)   := false
 | (_ =* _)   (r* _ _)   := false
 | (t1 =* s1) (t2 =* s2) := (t1 = t2 ∧ s1 = s2) ∨ (t1 = s2 ∧ s1 = t2)
+
+instance equiv_decidable : decidable_rel equiv
+| (r* k ts)  (r* m ss)  := and.decidable
+| (r* _ _)   (_ =* _)   := decidable.false
+| (_ =* _)   (r* _ _)   := decidable.false
+| (t1 =* s1) (t2 =* s2) := or.decidable
 
 def repr : atm → string
 | (atm.rl k ts) := "r" ++ k.to_subs ++ string.tuplize (ts.map trm.repr)
 | (atm.eq t s) := t.repr ++ " = " ++ s.repr
 
 meta def to_expr : atm → expr
-| (atm.rl k ts) := 
+| (atm.rl k ts) :=
   expr.mk_app `(atm.rl) [k.to_expr, trmlst.to_expr ts]
-| (atm.eq t s) := 
+| (atm.eq t s) :=
   expr.mk_app `(atm.eq) [t.to_expr, s.to_expr]
 
 def vnew : atm → nat
@@ -503,7 +519,7 @@ def vdec (m : nat) : atm → atm
 | (atm.eq t s)  := atm.eq (t.vdec m) (s.vdec m)
 
 def finc : atm → atm
-| (atm.rl k ts) := atm.rl k (ts.map trm.finc) 
+| (atm.rl k ts) := atm.rl k (ts.map trm.finc)
 | (atm.eq t s)  := atm.eq t.finc s.finc
 
 def vsub (m : nat) (r : trm) : atm → atm
@@ -517,11 +533,11 @@ def vsubs (μs : vmaps) : atm → atm
 
 def rarity (m : nat) : atm → option nat
 | (atm.rl k ts) := if k = m then some ts.length else none
-| (atm.eq _ _)  := none 
+| (atm.eq _ _)  := none
 
 def farity (m : nat) : atm → option nat
 | (atm.rl k ts) := (ts.map $ trm.farity m).orelse
-| (atm.eq t s)  := t.farity m <|> s.farity m 
+| (atm.eq t s)  := t.farity m <|> s.farity m
 
 def vocc (m : nat) : atm → Prop
 | (atm.rl _ ts) := ∃ t ∈ ts, trm.vocc m t
@@ -529,48 +545,60 @@ def vocc (m : nat) : atm → Prop
 
 def replace (r u : trm) : atm → atm
 | (atm.rl k ts) := atm.rl k (ts.map $ trm.replace r u)
-| (atm.eq t s)  := atm.eq (trm.replace r u t) (trm.replace r u s) 
+| (atm.eq t s)  := atm.eq (trm.replace r u t) (trm.replace r u s)
 
 lemma holds_vsubs (μs : vmaps) :
   ∀ a : atm,
   (a.vsubs μs).holds R F V ↔
-  a.holds R F (V.vsubs F μs) 
-| (r* k ts) := 
+  a.holds R F (V.vsubs F μs)
+| (r* k ts) :=
   begin
     unfold vsubs,
     unfold holds,
     rw list.map_map,
-    have h0 : trm.val F V ∘ trm.vsubs μs = 
+    have h0 : trm.val F V ∘ trm.vsubs μs =
       trm.val F (vas.vsubs F μs V),
     { apply funext, intro x,
       apply trm.val_vsubs },
     rw h0,
   end
-| (t =* s)  := 
+| (t =* s)  :=
   begin
     unfold vsubs,
     unfold holds,
     repeat {rw trm.val_vsubs},
   end
 
-lemma holds_replace {r u : trm} 
-  (h0 : r.val F V = u.val F V) : 
-  ∀ a : atm, (a.replace r u).holds R F V ↔ a.holds R F V 
-| (r* k ts) := 
+lemma holds_replace {r u : trm}
+  (h0 : r.val F V = u.val F V) :
+  ∀ a : atm, (a.replace r u).holds R F V ↔ a.holds R F V
+| (r* k ts) :=
   begin
     have h3 : ((trm.val F V) ∘ trm.replace r u) = (trm.val F V),
        { apply funext, intro x,
          apply trm.val_replace h0 },
-    unfold replace, 
+    unfold replace,
     unfold holds,
     rw [ list.map_map, h3 ],
   end
-| (t =* s) := 
+| (t =* s) :=
   begin
-    unfold replace, 
-    unfold holds, 
+    unfold replace,
+    unfold holds,
     rw [ trm.val_replace h0,
          trm.val_replace h0 ]
+  end
+
+lemma holds_iff_holds_of_equiv :
+  ∀ {a1 a2 : atm}, equiv a1 a2 → (a1.holds R F V ↔ a2.holds R F V)
+| (r* k ts) (r* m ss) h0 :=
+  begin cases h0 with h0 h1, rw [h0, h1] end
+| (r* _ _) (_ =* _) h0 := by cases h0
+| (_ =* _) (r* _ _) h0 := by cases h0
+| (t1 =* s1) (t2 =* s2) h0 :=
+  begin
+    rcases h0 with ⟨h0, h1⟩ | ⟨h0, h1⟩;
+    rw [h0, h1], constructor; apply eq.symm,
   end
 
 end atm
@@ -626,7 +654,7 @@ def vinc : nat → nat → frm → frm
 | m n (frm.bin b f g) := frm.bin b (f.vinc m n) (g.vinc m n)
 | m n (frm.qua b f)   := frm.qua b (f.vinc (m + 1) n)
 
-def default : frm := +* atm.default 
+def default : frm := +* atm.default
 
 def holds (R : rls α) (F : fns α) : vas α → frm → Prop
 | V (+* a)   :=   a.holds R F V
@@ -699,7 +727,7 @@ def F : frm → Prop
 | (frm.qua _ p)   := false
 
 def QF : frm → Prop
-| (frm.qua _ f) := f.QF 
+| (frm.qua _ f) := f.QF
 | f             := f.F
 
 instance F.decidable : decidable_pred frm.F
@@ -732,7 +760,7 @@ variables {b : bool} (f f1 f2 g g1 g2 : frm)
 lemma holds_neg : ∀ {V : vas α} {f : frm},
   (f.neg.holds R F V) ↔ ¬ (f.holds R F V)
 | _ (+* a)   := iff.refl _
-| _ (-* a)   := 
+| _ (-* a)   :=
   by simp only [ frm.neg, frm.holds,
        bnot, classical.not_not ]
 | _ (p ∨* q) :=
@@ -800,11 +828,11 @@ local notation F `∃⟹` k := exists_ext k F
 lemma trm.val_eq_val (F : fns α) {V W : vas α} :
   ∀ t : trm, (∀ m : nat, t.vocc m → V m = W m) →
   (t.val F V = t.val F W) :=
-trm.rec 
-  (begin 
-     intros k h0, 
+trm.rec
+  (begin
+     intros k h0,
      apply h0 k rfl,
-   end) 
+   end)
   (begin
      intros k ts ih h0,
      rw [trm.val_fn, trm.val_fn],
@@ -816,7 +844,7 @@ trm.rec
      refine ⟨t, h1, h2⟩
    end)
 
-lemma atm.holds_iff_holds {l : atm} {V W : vas α} 
+lemma atm.holds_iff_holds {l : atm} {V W : vas α}
   (h0 : ∀ m : nat, l.vocc m → V m = W m) :
   (l.holds R F V ↔ l.holds R F W) :=
 begin
@@ -833,14 +861,14 @@ begin
        trm.val_eq_val F s ];
   intros k h1; apply h0,
   { right, exact h1 },
-  left, exact h1 
+  left, exact h1
 end
 
 lemma holds_iff_holds  :
   ∀ f : frm, ∀ V W : vas α,
   (∀ m : nat, f.vocc m → V m = W m) →
   (f.holds R F V ↔ f.holds R F W)
-| (frm.atm b a) V W h0 := 
+| (frm.atm b a) V W h0 :=
   by { cases b; unfold frm.holds;
        rw atm.holds_iff_holds h0 }
 | (frm.bin b f g) V W h0 :=
@@ -863,23 +891,23 @@ lemma holds_iff_holds  :
   end
 
 lemma trms.mem_lmap {s : trm} {f : trm → A} :
-  ∀ {ts : trms}, s ∈ ts → f s ∈ trms.lmap f ts 
-| []*        := by rintro ⟨_⟩ 
-| (t ::* ts) := 
+  ∀ {ts : trms}, s ∈ ts → f s ∈ trms.lmap f ts
+| []*        := by rintro ⟨_⟩
+| (t ::* ts) :=
   by { intro h0,
        rw trms.mem_cons_iff at h0,
        unfold trms.lmap, cases h0,
        { subst h0, apply or.inl rfl },
        right, apply trms.mem_lmap h0 }
- 
+
 lemma trm.lt_of_vnew_le {m n : nat} :
   ∀ {t : trm}, t.vnew ≤ m → t.vocc n → n < m :=
-trm.rec 
- (begin 
+trm.rec
+ (begin
     rintros k h0 ⟨h1⟩ ,
     apply nat.lt_of_succ_le h0,
   end)
- (begin 
+ (begin
     intros k ts ih h0 h1,
     rw trm.vocc_fn at h1,
     rcases h1 with ⟨t, h2, h3⟩,
@@ -894,7 +922,7 @@ lemma atm.lt_of_vnew_le :
   ∀ {l : atm}, ∀ {k m : nat},
   l.vnew ≤ k → l.vocc m → m < k
 | (atm.rl _ ts) k m h0 h1 :=
-  by { rcases h1 with ⟨t, h2, h3⟩, 
+  by { rcases h1 with ⟨t, h2, h3⟩,
        apply trm.lt_of_vnew_le _ h3,
        apply le_trans _ h0,
        apply nats.le_max_of_mem,
@@ -972,7 +1000,7 @@ lemma ext_prepend (k : nat) (f g : nat → β) :
 
 lemma forall_ext_holds_of_fvx :
   ∀ k : nat, ∀ V : vas α,
-  f.fvx R F k V → ∀ W : vas α, ext k W V → f.holds R F W 
+  f.fvx R F k V → ∀ W : vas α, ext k W V → f.holds R F W
 | 0 V h0 W h1 :=
   begin
     have h2 : W = V,
@@ -1039,7 +1067,7 @@ begin
 end
 
 lemma holds_strip_fa :
-  ∀ {f : frm} {k : nat}, 
+  ∀ {f : frm} {k : nat},
   f.AF → f.vnew ≤ k →
   (V ∀⟹ k) (λ V', f.holds R F V') →
   ∀ W : vas α, f.strip_fa.holds R F W
