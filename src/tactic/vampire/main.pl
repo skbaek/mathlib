@@ -331,7 +331,7 @@ expl_ln(_, _, ln(LnNum, trv(PremNum), Cla),
 expl_ln(_, Lns,
   ln(LnNum, map(PremNum), Cla),
   [ ln(LnNum, wkn(rel(0)), Cla),
-    ln(none, inst(Inst, abs(PremNum)), ClaA) ]) :-
+    ln(none, inst(abs(PremNum), Inst), ClaA) ]) :-
   member(ln(PremNum, _, ClaA0), Lns),
   calc_inst_cla(ClaA0, Cla, Inst),
   subst_cla(Inst, ClaA0, ClaA).
@@ -341,9 +341,9 @@ expl_ln(_, Lns,
   [ ln(LnNum, wkn(rel(0)), Cla),
     ln(none, rep(rel(2), rel(0)), [Lit | TlCla]),
     ln(none, wkn(rel(0)), [lit(pos, eq(TrmA, TrmB)) | TlCla]),
-    ln(none, inst(PremNumB, InstB), ClaB),
+    ln(none, inst(abs(PremNumB), InstB), ClaB),
     ln(none, wkn(rel(0)), [LitA | TlCla]),
-    ln(none, inst(PremNumA, InstA), ClaA) ]) :-
+    ln(none, inst(abs(PremNumA), InstA), ClaA) ]) :-
   member(ln(PremNumA, _, ClaA0), Lns),
   member(ln(PremNumB, _, ClaB0), Lns),
   disjoiner(ClaB0, Cla, DsjB),
@@ -375,7 +375,7 @@ expl_ln(_, Lns,
 expl_ln(_, Lns, ln(LnNum, eqres(PremNum), Cla),
   [ ln(LnNum, trv(rel(0)), Cla),
     ln(none, wkn(rel(0)), [lit(neg, eq(Trm, Trm)) | Cla]),
-    ln(none, inst(Inst, abs(PremNum)), ClaA) ]) :-
+    ln(none, inst(abs(PremNum), Inst), ClaA) ]) :-
   member(ln(PremNum, _, ClaA0), Lns),
   pluck(ClaA0, lit(neg, eq(TrmA, TrmB)), ClaA1),
   unif_trm(TrmA, TrmB, Unf),
@@ -388,9 +388,9 @@ expl_ln(_, Lns, ln(LnNum, eqres(PremNum), Cla),
 expl_ln(_, Lns, ln(LnNum, res(NumA, NumB), Cla),
   [ ln(LnNum, res(rel(2), rel(0)), Cla),
     ln(none, wkn(rel(0)), [lit(pos, Atm) | Cla]),
-    ln(none, inst(InstB, abs(PremNumB)), ClaB),
+    ln(none, inst(abs(PremNumB), InstB), ClaB),
     ln(none, wkn(rel(0)), [lit(neg, Atm) | Cla]),
-    ln(none, inst(InstA, abs(PremNumA)), ClaA) ]) :-
+    ln(none, inst(abs(PremNumA), InstA), ClaA) ]) :-
   ( (PremNumA = NumA, PremNumB = NumB) ;
     (PremNumA = NumB, PremNumB = NumA) ),
   % Get premise lns
@@ -417,7 +417,7 @@ expl_ln(_, Lns, ln(LnNum, res(NumA, NumB), Cla),
 
 expl_ln(Mat, _, ln(LnNum, hyp, Cla),
   [ ln(LnNum, wkn(rel(0)), Cla),
-    ln(none, inst(Inst, rel(0)), ClaA1),
+    ln(none, inst(rel(0), Inst), ClaA1),
     ln(none, hyp(ClaNum), ClaA0) ]) :-
   nth0(ClaNum, Mat, ClaA0),
   calc_inst_cla(ClaA0, Cla, Inst),
@@ -455,10 +455,10 @@ relativize_rul(res(NumA, NumB), Prf, res(NewNumA, NewNumB)) :-
 relativize_rul(wkn(Num), Prf, wkn(NewNum)) :-
   relativize_num(Num, Prf, NewNum).
 
-relativize_rul(trv(Num), Prf, wkn(NewNum)) :-
+relativize_rul(trv(Num), Prf, trv(NewNum)) :-
   relativize_num(Num, Prf, NewNum).
 
-relativize_rul(inst(Inst, Num), Prf, inst(Inst, NewNum)) :-
+relativize_rul(inst(Num, Inst), Prf, inst(NewNum, Inst)) :-
   relativize_num(Num, Prf, NewNum).
 
 relativize_ln(ln(_, Rul, Cla), Prf, ln(NewRul, Cla)) :-
@@ -470,19 +470,14 @@ relativize([Ln | Prf], [NewLn | NewPrf]) :-
   relativize_ln(Ln, Prf, NewLn),
   relativize(Prf, NewPrf).
 
+relativize(Prf, relativize_error(Prf)).
+
 encode_lst(_, [], "n").
 
 encode_lst(Enc, [Elm | Lst], Str) :-
   call(Enc, Elm, ElmStr),
   encode_lst(Enc, Lst, LstStr),
   join_string([LstStr, ElmStr, "c"], Str).
-
-% encode_trms([], "n").
-%
-% encode_trms([Trm | Trms], Str) :-
-%   encode_trms(Trms, TrmsStr),
-%   encode_trm(Trm, TrmStr),
-%   join_string([TrmsStr, TrmStr, "c"], Str).
 
 encode_trm(vr(Num), Str) :-
   encode_num(Num, NumStr),
@@ -518,10 +513,6 @@ encode_map(map(Num, Trm), Str) :-
 
 encode_maps(Maps, Str) :-
   encode_lst(encode_map, Maps, Str).
-%
-% encode_maps([map(Num, Trm) | Maps], Str) :-
-%   encode_maps(Maps, SubStr),
-%   join_string([SubStr, TrmStr, NumStr, "mc"], Str).
 
 encode_num(Num, Str) :-
   number_binstr(Num, NumStr),
@@ -539,9 +530,9 @@ encode_rul(res(NumA, NumB), Str) :-
 encode_rul(rep(NumA, NumB), Str) :-
   encode_num(NumA, NumStrA),
   encode_num(NumB, NumStrB),
-  join_string([NumStrA, NumStrB, "R"], Str).
+  join_string([NumStrA, NumStrB, "P"], Str).
 
-encode_rul(inst(Inst, Num), Str) :-
+encode_rul(inst(Num, Inst), Str) :-
   encode_maps(Inst, InstStr),
   encode_num(Num, NumStr),
   join_string([InstStr, NumStr, "I"], Str).
@@ -583,7 +574,6 @@ main([Argv]) :-
   encode_prf(Prf1, RawStr),
 
   % compress(RawPrf, Prf),
-  % encode_prf(Prf, RawStr),
   string_block(RawStr, Str),
   write(Str).
 

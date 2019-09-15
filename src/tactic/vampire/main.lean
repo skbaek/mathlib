@@ -348,45 +348,42 @@ meta def decode : list item → list char → tactic (list ln)
   trace "Remaining proof" >> trace chs >> failed
 | [] chs := trace "Stack empty, remaining proof : " >> trace chs >> failed
 
-meta def mk_prf_expr_core (m : mat) (mx : expr) : list ln → tactic (expr × cla)
-| [] := failed
-| ((rul.H k, d) :: lns) :=
-  if d = m.nth k
-  then return (expr.mk_app `(@proof.H) [mx, k.to_expr], m.nth k)
-  else failed
-| ((rul.V k, _) :: lns) :=
-  let lns' := lns.drop k in
-  do (πx, (ff, t =* _) :: c) ← mk_prf_expr_core lns',
+meta def mk_prf_expr_aux (m : mat) (mx : expr) :
+  ln → list (expr × cla) → tactic (expr × cla)
+| (rul.H k, _) _ :=
+  return (expr.mk_app `(@proof.H) [mx, k.to_expr], m.nth k)
+| (rul.V k, _) xcs :=
+  do (πx, (ff, t =* _) :: c) ← xcs.nth k,
      return (expr.mk_app `(@proof.V) [mx, trm.to_expr t, cla.to_expr c, πx], c)
-| ((rul.R i j, _) :: lns) :=
-  let lns_i := lns.drop i in
-  let lns_j := lns.drop j in
-  do (πx, (ff, a) :: c) ← mk_prf_expr_core lns_i,
-     (σx, (tt, _) :: _) ← mk_prf_expr_core lns_j,
+| (rul.R i j, _) xcs :=
+  do (πx, (ff, a) :: c) ← xcs.nth i,
+     (σx, (tt, _) :: _) ← xcs.nth j,
      return (expr.mk_app `(@proof.R) [mx, atm.to_expr a, cla.to_expr c, πx, σx], c)
-| ((rul.P i j, _) :: lns) :=
-  let lns_i := lns.drop i in
-  let lns_j := lns.drop j in
-  do (πx, l :: c) ← mk_prf_expr_core lns_i,
-     (σx, (tt, t =* s) :: _) ← mk_prf_expr_core lns_j,
+| (rul.P i j, _) xcs :=
+  do (πx, l :: c) ← xcs.nth i,
+     (σx, (tt, t =* s) :: _) ← xcs.nth j,
      let ρx := expr.mk_app `(@proof.P)
        [mx, l.to_expr, t.to_expr, s.to_expr, cla.to_expr c, πx, σx] ,
      return (ρx, (l.replace t s :: c))
-| ((rul.I k μs, _) :: lns) :=
-  let lns' := lns.drop k in
-  do (πx, c) ← mk_prf_expr_core lns',
+| (rul.I k μs, _) xcs :=
+  do (πx, c) ← xcs.nth k,
      let σx := expr.mk_app `(@proof.I) [mx, μs.to_expr, c.to_expr, πx],
-     trace "Inst rule with premise : ", trace k,
-     trace "result : ", trace (cla.repr (c.vsubs μs)),
      return (σx, c.vsubs μs)
-| ((rul.W k, d) :: lns) :=
-  let lns' := lns.drop k in
-  do (πx, c) ← mk_prf_expr_core lns',
+| (rul.W k, d) xcs :=
+  do (πx, c) ← xcs.nth k,
      let sx := expr.mk_app `(cla.subsumes) [c.to_expr, d.to_expr],
      let dx := expr.mk_app `(cla.subsumes_decidable) [c.to_expr, d.to_expr],
      let hx := expr.mk_app `(@of_as_true) [sx, dx, `(trivial)],
      let σx := expr.mk_app `(@proof.W) [mx, c.to_expr, d.to_expr, hx, πx],
      return (σx, d)
+
+meta def mk_prf_expr_core (m : mat) (mx : expr) :
+  list ln → tactic (list $ expr × cla)
+| [] := return []
+| (l :: ls) :=
+  do xcs ← mk_prf_expr_core ls,
+     xc  ← mk_prf_expr_aux m mx l xcs,
+     return (xc :: xcs)
 
 def normalize (f : frm) : frm :=
 skolemize $ pnf $ f.neg
@@ -423,7 +420,7 @@ instance decidable_vnew_eq_zero (f : frm) :
 
 meta def mk_prf_expr
   (αx ix : expr) (f : frm) (m : mat) (ls : list ln) : tactic expr :=
-do (πx, []) ← mk_prf_expr_core m m.to_expr ls,
+do ((πx, []) :: _) ← mk_prf_expr_core m m.to_expr ls,
    let rnx  : expr := f.rnew.to_expr,
    let fnx  : expr := f.fnew.to_expr,
    let Rx   : expr := `(Rdf %%αx),
@@ -451,16 +448,22 @@ do desugar,
    -- else skip
    skip
 
--- example (A B : Prop) : A ∧ B → B ∧ A :=
--- by vampire
+open tactic expr vampire
+
+example : ∀ x y : ℕ, x = y ∨ ¬ x = y :=
+by vampire
+
+example (A B : Prop) : A ∧ B → B ∧ A :=
+by vampire
+
+
+
 
 variables [inhabited α]
 variables (a c : α) (p q : α → Prop) (r : α → α → Prop)
 
 example : (∀ x, p x → q x) → (∀ x, p x) → q a :=
 by vampire
-
-
 
 example : (∃ x, p x ∧ r x x) → (∀ x, r x x → q x) → ∃ x, p x ∧ q x :=
 by vampire
