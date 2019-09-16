@@ -276,7 +276,6 @@ rep_atm(TrmL, TrmR, eq(SrcTrmA, SrcTrmB), eq(TgtTrmA, TgtTrmB)) :-
   rep_trm(TrmL, TrmR, SrcTrmA, TgtTrmA),
   rep_trm(TrmL, TrmR, SrcTrmB, TgtTrmB).
 
-
 select_dir(Prf, Prf).
 
 select_dir(Prf, sym(Prf, [lit(Pol, eq(TrmB, TrmA)) | Cnc])) :-
@@ -290,31 +289,7 @@ select_lit(Prf, NewPrf) :-
   select_rot(Prf, TmpPrf),
   select_dir(TmpPrf, NewPrf).
 
-cmpl_res(PrfA, PrfB, res(PrfA2, PrfB1, Cnc)) :-
-  conc(PrfA, CncA),
-  CncA = [lit(neg, _) | _],
-  conc(PrfB, CncB),
-  CncB = [lit(pos, AtmB) | _],
-  disjoiner(CncA, CncB, Dsj),
-  subst_cla(Dsj, CncA, CncA1),
-  CncA1 = [lit(neg, AtmA) | _],
-  PrfA1 = sub(Dsj, PrfA, CncA1),
-  unif_atm(AtmA, AtmB, Unf),
-  subst_cla(Unf, CncA1, CncA2),
-  CncA2 = [lit(neg, Atm) | ClaA2],
-  PrfA2 = sub(Unf, PrfA1, CncA2),
-  subst_cla(Unf, CncB, CncB1),
-  CncB1 = [lit(pos, Atm) | ClaB1],
-  PrfB1 = sub(Unf, PrfB, CncB1),
-  append(ClaA2, ClaB1, Cnc).
-
 temp_loc("/var/tmp/temp_goal_file").
-
-% cmpl_map(Cla, Tgt, Prf) :-
-%   conc(SubPrf, Cnc),
-%   compute_maps(Cnc, Tgt, Inst, Nums),
-%   subst_cla(Inst, SubCnc, NewCnc),
-%   cmpl_cnts(sub(Inst, SubPrf, SubCnc1), Nums, Prf).
 
 pluck(Fst, [Elm | Snd], Elm, Rem) :-
   append(Fst, Snd, Rem).
@@ -616,6 +591,122 @@ rm_id(Frp, [ln(inst(Num, []), _) | Prf], NewPrf) :-
 rm_id(Frp, [Ln | Prf], NewPrf) :-
   rm_id([Ln | Frp], Prf, NewPrf).
 
+% gather(Setify, Lst, Set) :-
+%   maplist(Setify, Lst, Sets),
+%   union(Sets, Set).
+%
+% atm_lit(lit(_, Atm), Atm).
+%
+% atms_cla(Cla, Atms) :-
+%   maplist(atm_lit, Cla, Atms).
+%
+% atms_clas(Clas, Atms) :-
+%   gather(atms_cla, Clas, Atms).
+%
+% cla_ln(ln(_, Cla), Cla).
+%
+% clas_prf(Prf, Clas) :-
+%   maplist(cla_ln, Prf, Clas).
+%
+% mapss_ln(ln(inst(_, Maps), _), [Maps]).
+%
+% mapss_ln(_, []).
+%
+% mapss_prf(Prf, Mapss) :-
+%   gather(mapss_ln, Prf, Mapss).
+
+get_any(Goal, [Elm | _], Rst) :-
+  call(Goal, Elm, Rst).
+
+get_any(Goal, [_ | Lst], Rst) :-
+  get_any(Goal, Lst, Rst).
+
+map_lit(Goal, lit(Pol, Atm), lit(Pol, NewAtm)) :-
+  call(Goal, Atm, NewAtm).
+
+map_atm(Goal, rl(Num, Trms), rl(Num, NewTrms)) :-
+  maplist(Goal, Trms, NewTrms).
+
+map_atm(Goal, eq(TrmA, TrmB), eq(NewTrmA, NewTrmB)) :-
+  call(Goal, TrmA, NewTrmA),
+  call(Goal, TrmB, NewTrmB).
+
+tgt_map(map(_, Trm), Trm).
+
+simple_trm_trm(vr(Num), vr(Num)).
+
+simple_trm_trm(fn(NumA, trms(NumB)), fn(NumA, trms(NumB))).
+
+simple_trm_trm(fn(_, Trms), Trm) :-
+  get_any(simple_trm_trm, Trms, Trm).
+
+simple_trm_atm(rl(_, Trms), Trm) :-
+  get_any(simple_trm_trm, Trms, Trm).
+
+simple_trm_atm(eq(TrmA, TrmB), Trm) :-
+  simple_trm_trm(TrmA, Trm);
+  simple_trm_trm(TrmB, Trm).
+
+simple_trm_lit(lit(_, Atm), Trm) :-
+  simple_trm_atm(Atm, Trm).
+
+simple_trm_ln(ln(int(_, Maps), _), Trm) :-
+  maplist(tgt_map, Maps, Trms),
+  get_any(simple_trm_trm, Trms, Trm).
+
+simple_trm_ln(ln(_, Cla), Trm) :-
+  get_any(simple_trm_lit, Cla, Trm).
+
+simple_trm_prf(Prf, Trm) :-
+  get_any(simple_trm_ln, Prf, Trm).
+
+point_trm_trm(Trm, Num, Trm, trm(Num)).
+
+point_trm_trm(Trm, NumA, fn(NumB, Trms), fn(NumB, NewTrms)) :-
+  maplist(point_trm_trm(Trm, NumA), Trms, NewTrms).
+
+point_trm_map(TrmA, NumA, map(NumB, TrmB), map(NumB, NewTrmB)) :-
+  point_trm_trm(TrmA, NumA, TrmB, NewTrmB).
+
+point_trm_rul(Trm, NumA, inst(NumB, Maps), inst(NumB, NewMaps)) :-
+  maplist(point_trm_map(Trm, NumA), Maps, NewMaps).
+
+point_trm_rul(_, _, Rul, Rul).
+
+point_trm_ln(Trm, Num, ln(Rul, Cla), ln(NewRul, NewCla)) :-
+  point_trm_rul(Trm, Num, Rul, NewRul),
+  maplist(map_lit(map_atm(point_trm_trm(Trm, Num))), Cla, NewCla).
+
+point_trm_prf(Trm, Num, Prf, NewPrf) :-
+  maplist(point_trm_ln(Trm, Num), Prf, NewPrf).
+
+dedup(Prf, Trms, Trmss, Atms, Clas, NewPrf) :-
+  simple_trm_prf(Prf, Trm),
+  length(Trms, Num),
+  point_trm_prf(Trm, Num, Prf, TmpPrf),
+  dedup(TmpPrf, [Trm | Trms], Trmss, Atms, Clas, NewPrf).
+
+dedup(Prf, Trms, Trmss, Atms, Clas, NewPrf) :-
+  simple_trms_prf(Prf, SmpTrms),
+  length(Trmss, Num),
+  point_trms(SmpTrms, Num, Prf, TmpPrf),
+  dedup(TmpPrf, Trms, [SmpTrms | Trmss], Atms, Clas, NewPrf).
+
+  % clas_prf(Prf, Clas),
+  % atms_clas(Clas, Atms),
+  % mapss_prf(Prf, Mapss),
+  % trms_atms(Atms, TrmsA),
+  % trms_mapss(Mapss, TrmsB),
+  % union(TrmsA, TrmsB, Trms),
+  % dedup_trms(Trms, TrmLst, TrmsLst),
+  % dedup_atms(Atms, TrmLst, TrmsLst, AtmLst),
+  % dedup_clas(Clas, AtmLst, ClaLst),
+  % dedup_prf(Prf, TrmLst, ClaLst, NewPrf),
+  % maplist(fst, TrmLst, TrmRfs),
+  % maplist(fst, TrmsLst, TrmsRfs),
+  % maplist(fst, AtmLst, AtmRfs),
+  % maplist(fst, ClaLst, ClaRfs).
+
 main([Argv]) :-
   string_chars(Argv, Chs),
   parse_inp([], Chs, Mat),
@@ -625,66 +716,12 @@ main([Argv]) :-
   expl_lns(Mat, Lns, Prf0),
   relativize(Prf0, Prf1),
   rm_id([], Prf1, Prf2),
-  encode_prf(Prf2, RawStr),
-  string_block(RawStr, Str),
-  write(Str).
+  dedup(Prf2, [], [], [], [], Prf),
+  % encode_prf(Prf2, RawStr),
+  % string_block(RawStr, Str),
+  write(Prf).
 
 /*
-cmpl(Mat, _, Tgt, hyp, Prf) :-
-  nth0(Num, Mat, Cla),
-  cmpl_map(hyp(Num, Cla), Tgt, Prf).
-
-cmpl(Mat, Lns, Tgt, res(NumA, NumB), Prf) :-
-  cmpl(Mat, Lns, NumA, PrfA),
-  cmpl(Mat, Lns, NumB, PrfB),
-  conc(PrfA, CncA),
-  conc(PrfB, CncB),
-  tor(CncA, IdxA, CncA1),
-  tor(CncB, IdxB, CncB1),
-  PrfA1 = rot(IdxA, PrfA, CncA1),
-  PrfB1 = rot(IdxB, PrfB, CncB1),
-  ( cmpl_res(PrfA1, PrfB1, SubPrf) ;
-    cmpl_res(PrfB1, PrfA1, SubPrf) ),
-  cmpl_map(SubPrf, Tgt, Prf).
-
-cmpl(Mat, Lns, Tgt, rep(NumA, NumB), Prf) :-
-  cmpl(Mat, Lns, NumA, PrfA),
-  cmpl(Mat, Lns, NumB, PrfB),
-  cmpl_rep(PrfA, PrfB, Tgt, Prf).
-
-cmpl(Mat, Lns, Tgt, eqres(Num), Prf) :-
-  cmpl(Mat, Lns, Num, Prf1),
-  conc(Prf1, Cnc1),
-  tor(Cnc1, Idx, Cnc2),
-  Cnc2 = [lit(neg, eq(TrmA, TrmB)) | _],
-  Prf2 = rot(Idx, Prf1, Cnc2),
-  unif_trm(TrmA, TrmB, Unf),
-  subst_cla(Unf, Cnc2, Cnc3),
-  Cnc3 = [lit(neg, eq(Trm, Trm)) | Tl],
-  Prf3 = sub(Unf, Prf2, Cnc3),
-  Prf4 = trv(Prf3, Tl),
-  cmpl_map(Prf4, Tgt, Prf).
-
-cmpl(Mat, Lns, Tgt, trv(Num), trv(Prf, Tgt)) :-
-  cmpl(Mat, Lns, Num, Prf),
-  conc(Prf, [lit(neg, eq(Trm, Trm)) | Tgt]).
-
-cmpl(Mat, Lns, Tgt, map(Num), Prf) :-
-  cmpl(Mat, Lns, Num, SubPrf),
-  cmpl_map(SubPrf, Tgt, Prf).
-
-cmpl(Mat, Lns, Num, Prf) :-
-  member(ln(Num, Tgt, Rul), Lns),
-  cmpl(Mat, Lns, Tgt, Rul, Prf).
-
-cmpl(Mat, Lns, Prf) :-
-  length(Lns, Lth),
-  Idx is Lth - 1,
-  nth0(Idx, Lns, ln(_, [], Rul)),
-  cmpl(Mat, Lns, [], Rul, Prf).
-
-cmpl(Mat, Lns, cmpl_error(Mat, Lns)).
-
 
 trms_string(Trms, Str) :-
   maplist(trm_string, Trms, TrmStrs),
