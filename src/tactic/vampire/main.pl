@@ -565,6 +565,57 @@ string_block(Str, Blk) :-
   string_codes(Nl, [10]),
   join_string(Strs, Nl, Blk).
 
+redirect_num(SrcNum, TgtNum, SrcNum, TgtNum).
+
+redirect_num(SrcNum, _, Num, Num) :-
+  Num < SrcNum.
+
+redirect_num(SrcNum, _, Num, NewNum) :-
+  SrcNum < Num,
+  NewNum is Num - 1.
+
+redirect_rul(_, _, hyp(Num), hyp(Num)).
+
+redirect_rul(SrcNum, TgtNum, trv(Num), trv(NewNum)) :-
+  redirect_num(SrcNum, TgtNum, Num, NewNum).
+
+redirect_rul(SrcNum, TgtNum, wkn(Num), wkn(NewNum)) :-
+  redirect_num(SrcNum, TgtNum, Num, NewNum).
+
+redirect_rul(SrcNum, TgtNum, inst(Num, Maps), inst(NewNum, Maps)) :-
+  redirect_num(SrcNum, TgtNum, Num, NewNum).
+
+redirect_rul(SrcNum, TgtNum, res(NumA, NumB), res(NewNumA, NewNumB)) :-
+  redirect_num(SrcNum, TgtNum, NumA, NewNumA),
+  redirect_num(SrcNum, TgtNum, NumB, NewNumB).
+
+redirect_rul(SrcNum, TgtNum, rep(NumA, NumB), rep(NewNumA, NewNumB)) :-
+  redirect_num(SrcNum, TgtNum, NumA, NewNumA),
+  redirect_num(SrcNum, TgtNum, NumB, NewNumB).
+
+redirect(_, _, [], []).
+
+redirect(SrcNum, TgtNum, [ln(Rul, Cla) | Frp], [ln(NewRul, Cla) | NewFrp]) :-
+  redirect_rul(SrcNum, TgtNum, Rul, NewRul),
+  NewSrcNum is SrcNum + 1,
+  NewTgtNum is TgtNum + 1,
+  redirect(NewSrcNum, NewTgtNum, Frp, NewFrp).
+
+rm_id(Frp, [], Prf) :-
+  reverse(Frp, Prf).
+
+rm_id(Frp, [ln(wkn(Num), Cla) | Prf], NewPrf) :-
+  nth0(Num, Prf, ln(_, Cla)),
+  redirect(0, Num, Frp, NewFrp),
+  rm_id(NewFrp, Prf, NewPrf).
+
+rm_id(Frp, [ln(inst(Num, []), _) | Prf], NewPrf) :-
+  redirect(0, Num, Frp, NewFrp),
+  rm_id(NewFrp, Prf, NewPrf).
+
+rm_id(Frp, [Ln | Prf], NewPrf) :-
+  rm_id([Ln | Frp], Prf, NewPrf).
+
 main([Argv]) :-
   string_chars(Argv, Chs),
   parse_inp([], Chs, Mat),
@@ -573,8 +624,8 @@ main([Argv]) :-
   read_proof(Loc, Lns),
   expl_lns(Mat, Lns, Prf0),
   relativize(Prf0, Prf1),
-  % compress(RawPrf, Prf),
-  encode_prf(Prf1, RawStr),
+  rm_id([], Prf1, Prf2),
+  encode_prf(Prf2, RawStr),
   string_block(RawStr, Str),
   write(Str).
 
