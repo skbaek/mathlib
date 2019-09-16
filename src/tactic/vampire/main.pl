@@ -333,7 +333,8 @@ expl_ln(_, Lns,
   [ ln(LnNum, wkn(rel(0)), Cla),
     ln(none, inst(abs(PremNum), Inst), ClaA) ]) :-
   member(ln(PremNum, _, ClaA0), Lns),
-  calc_inst_cla(ClaA0, Cla, Inst),
+  calc_inst_cla(ClaA0, Cla, TmpInst),
+  compress_inst(ClaA0, TmpInst, Inst),
   subst_cla(Inst, ClaA0, ClaA).
 
 expl_ln(_, Lns,
@@ -420,7 +421,8 @@ expl_ln(Mat, _, ln(LnNum, hyp, Cla),
     ln(none, inst(rel(0), Inst), ClaA1),
     ln(none, hyp(ClaNum), ClaA0) ]) :-
   nth0(ClaNum, Mat, ClaA0),
-  calc_inst_cla(ClaA0, Cla, Inst),
+  calc_inst_cla(ClaA0, Cla, TmpInst),
+  compress_inst(ClaA0, TmpInst, Inst),
   subst_cla(Inst, ClaA0, ClaA1).
 
 expl_lns(Mat, Lns, Prf) :-
@@ -571,9 +573,8 @@ main([Argv]) :-
   read_proof(Loc, Lns),
   expl_lns(Mat, Lns, Prf0),
   relativize(Prf0, Prf1),
-  encode_prf(Prf1, RawStr),
-
   % compress(RawPrf, Prf),
+  encode_prf(Prf1, RawStr),
   string_block(RawStr, Str),
   write(Str).
 

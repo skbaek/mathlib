@@ -441,6 +441,7 @@ do desugar,
    let m := clausify f,
    s ← get_asm m, -- s ← (inp <|> get_asm m),
    ls ← decode [] s.data,
+   trace (lns.repr ls),
    x ← mk_prf_expr αx ix f m ls,
    apply x,
    -- if inp = none
@@ -455,9 +456,6 @@ by vampire
 
 example (A B : Prop) : A ∧ B → B ∧ A :=
 by vampire
-
-
-
 
 variables [inhabited α]
 variables (a c : α) (p q : α → Prop) (r : α → α → Prop)
@@ -507,6 +505,9 @@ lemma knights_and_knaves (me : α) (knight knave rich poor : α → α)
     (∀ X, ¬ says me X ∨ ¬ a_truth (and (knave me) (rich me)) X ) ∧
     (∀ X, says me X ∨ a_truth (and (knave me) (rich me)) X ) ) → false :=
 by vampire
+
+
+
 
 end vampire
 
